@@ -1,112 +1,167 @@
-import { useState } from 'react';
+// src/pages/Catalogo.tsx
+//
+// Página del catálogo de productos.
+// La autorización de acceso se controla desde App.tsx mediante RequireRole.
+
+import { useCallback, useEffect, useState } from 'react';
+
 import { useApi } from '../components/useApi';
-import { listarCatalogo, type Producto } from '../api/catalogo';
-import { ApiError } from '../api/client';
+import {
+  listarCatalogo,
+  type Producto,
+} from '../api/catalogo';
+import { apiErrorMessage } from '../api/client';
+import { useAuthorization } from '../components/useAuthorization';
 
 export function Catalogo() {
   const api = useApi();
+  const authorization = useAuthorization();
+  const { loading: authorizationLoading, hasScope } = authorization;
 
-  const [productos, setProductos] = useState<Producto[] | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [productos, setProductos] = useState<Producto[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const cargarCatalogo = async () => {
-    if (!api) {
-      setError('No hay sesión activa.');
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    setProductos(null);
-
+  const cargarCatalogo = useCallback(async () => {
+    if (!api || authorizationLoading || !hasScope('catalog.read')) return;
     try {
       const data = await listarCatalogo(api);
       setProductos(data);
+      setError(null);
     } catch (err) {
-      if (err instanceof ApiError) {
-        setError(
-          `API ${err.status} ${err.statusText} — ${JSON.stringify(err.body)}`
-        );
-      } else {
-        setError(
-          err instanceof Error ? err.message : 'Error desconocido'
-        );
-      }
+      setError(apiErrorMessage(err));
     } finally {
       setLoading(false);
     }
+  }, [api, authorizationLoading, hasScope]);
+
+  useEffect(() => {
+    if (!api || authorizationLoading || !hasScope('catalog.read')) return;
+    let active = true;
+
+    void listarCatalogo(api)
+      .then((data) => {
+        if (active) {
+          setProductos(data);
+          setError(null);
+        }
+      })
+      .catch((err: unknown) => {
+        if (active) setError(apiErrorMessage(err));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [api, authorizationLoading, hasScope]);
+
+  const actualizar = () => {
+    setLoading(true);
+    setError(null);
+    void cargarCatalogo();
   };
 
+  const backendPendiente = error === 'El backend aún no está configurado.';
+
   return (
-    <div style={{ marginTop: '1.5rem', textAlign: 'left' }}>
-      <h3>Catálogo de productos</h3>
+    <section className="page">
+      <div className="page-header">
+        <div>
+          <h1>Catálogo</h1>
 
-      <p
-        style={{
-          fontSize: '0.85rem',
-          color: '#666',
-          marginBottom: '1rem',
-        }}
-      >
-        Consulta protegida al catálogo de Pedidos360 mediante API Gateway.
-      </p>
+          <p className="subtitle">
+            Consulta de productos y disponibilidad.
+          </p>
+        </div>
 
-      <button
-        className="btn btn-login"
-        onClick={cargarCatalogo}
-        disabled={loading}
-      >
-        {loading ? 'Consultando...' : 'Cargar catálogo'}
-      </button>
-
-      {error && (
-        <p
-          style={{
-            color: '#d9534f',
-            marginTop: '1rem',
-            wordBreak: 'break-word',
-          }}
+        <button
+          className="btn btn-secondary"
+          onClick={actualizar}
+          disabled={loading || authorization.loading || !api || !authorization.hasScope('catalog.read')}
         >
-          {error}
-        </p>
-      )}
+          {loading ? 'Actualizando...' : 'Actualizar catálogo'}
+        </button>
+      </div>
 
-      {productos && productos.length === 0 && (
-        <p style={{ marginTop: '1rem' }}>
-          No hay productos disponibles.
-        </p>
-      )}
-
-      {productos && productos.length > 0 && (
-        <div style={{ marginTop: '1rem' }}>
-          {productos.map((producto, index) => (
-            <div
-              key={String(producto.id ?? index)}
-              className="card"
-              style={{ marginBottom: '1rem' }}
-            >
-              <h4>{producto.nombre ?? 'Producto sin nombre'}</h4>
-
-              {producto.descripcion && (
-                <p>{producto.descripcion}</p>
-              )}
-
-              {producto.precio !== undefined && (
-                <p>
-                  Precio: ${producto.precio}
-                </p>
-              )}
-
-              {producto.stock !== undefined && (
-                <p>
-                  Stock: {producto.stock}
-                </p>
-              )}
-            </div>
-          ))}
+      {backendPendiente && (
+        <div className="state-panel state-info" role="status">
+          <h2>Catálogo preparado</h2>
+          <p>El catálogo está preparado, pero el backend todavía no ha sido configurado.</p>
         </div>
       )}
-    </div>
+
+      {!backendPendiente && !authorization.loading && authorization.error && (
+        <div className="state-panel state-error" role="alert"><p>{authorization.error}</p></div>
+      )}
+
+      {!backendPendiente && !authorization.loading && !authorization.error && !authorization.hasScope('catalog.read') && (
+        <div className="state-panel state-error" role="alert">
+          <h2>Permiso de consulta no disponible</h2>
+          <p>Tu cuenta no tiene el permiso necesario para consultar el catálogo.</p>
+        </div>
+      )}
+
+      {error && (
+        !backendPendiente && <div className="state-panel state-error" role="alert">
+          <h3>No se pudo cargar el catálogo</h3>
+          <p>{error}</p>
+        </div>
+      )}
+
+      {!error && loading && !authorization.loading && authorization.hasScope('catalog.read') && (
+        <div className="state-panel" role="status">
+          <span className="loading-indicator" aria-hidden="true" />
+          <p>Cargando productos...</p>
+        </div>
+      )}
+
+      {!error && !backendPendiente &&
+        !loading &&
+        !authorization.loading && authorization.hasScope('catalog.read') &&
+        productos.length === 0 && (
+          <div className="state-panel">
+            <h3>Catálogo vacío</h3>
+
+            <p className="subtitle">
+              Actualmente no existen productos registrados.
+            </p>
+          </div>
+        )}
+
+      {!error && !backendPendiente &&
+        !loading &&
+        !authorization.loading && authorization.hasScope('catalog.read') &&
+        productos.length > 0 && (
+          <div className="product-grid">
+            {productos.map((producto) => (
+              <article
+                key={producto.id}
+                className="surface product-card"
+              >
+                <div className="product-card-header">
+                  <h3>{producto.nombre}</h3>
+
+                  <span className={`stock-badge${producto.stock === 0 ? ' stock-empty' : ''}`}>
+                    Stock: {producto.stock}
+                  </span>
+                </div>
+
+                {producto.descripcion && (
+                  <p className="subtitle">
+                    {producto.descripcion}
+                  </p>
+                )}
+
+                <div className="product-price">
+                  {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(producto.precio)}
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+    </section>
   );
 }

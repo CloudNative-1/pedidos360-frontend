@@ -2,7 +2,7 @@
 // Cliente HTTP reutilizable para el backend protegido por API Gateway + JWT authorizer.
 // Se encarga de: obtener el access token de Entra (aud = tu API), inyectar el
 // header Authorization, y normalizar errores. Añade rutas nuevas en archivos
-// hermanos (p.ej. src/api/pokemones.ts) usando este cliente.
+// hermanos (p.ej. src/api/xxxx.ts) usando este cliente.
 
 import type { IPublicClientApplication, AccountInfo } from '@azure/msal-browser';
 import { BrowserAuthError, InteractionRequiredAuthError } from '@azure/msal-browser';
@@ -14,12 +14,36 @@ export class ApiError extends Error {
   body: unknown;
 
   constructor(status: number, statusText: string, body: unknown) {
-    super(`API ${status} ${statusText}`);
+    super(status === 0 ? 'No fue posible conectar con el backend.' : `Error de servicio (${status}).`);
     this.name = 'ApiError';
     this.status = status;
     this.statusText = statusText;
     this.body = body;
   }
+}
+
+export class ApiNotConfiguredError extends Error {
+  constructor() {
+    super('El backend aún no está configurado.');
+    this.name = 'ApiNotConfiguredError';
+  }
+}
+
+export function apiErrorMessage(error: unknown): string {
+  if (error instanceof ApiNotConfiguredError) {
+    return error.message;
+  }
+
+  if (error instanceof ApiError) {
+    if (error.status === 0) return 'No se pudo conectar con el backend. Inténtalo nuevamente más tarde.';
+    if (error.status === 401) return 'La sesión no pudo autorizar esta solicitud. Inicia sesión nuevamente.';
+    if (error.status === 403) return 'Tu cuenta no tiene permiso para realizar esta acción.';
+    if (error.status === 404) return 'No se encontró la información solicitada.';
+    if (error.status >= 500) return 'El servicio presenta un problema temporal. Inténtalo más tarde.';
+    return 'No se pudo completar la solicitud.';
+  }
+
+  return 'No se pudo completar la solicitud. Inténtalo nuevamente.';
 }
 
 function safeJson(text: string): unknown {
@@ -66,6 +90,7 @@ export interface ApiClient {
   post<T>(path: string, body: unknown): Promise<T>;
   put<T>(path: string, body: unknown): Promise<T>;
   del<T>(path: string): Promise<T>;
+  delete<T>(path: string): Promise<T>;
 }
 
 export function createApiClient(
@@ -74,7 +99,7 @@ export function createApiClient(
 ): ApiClient {
   async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     if (!apiConfig.baseUrl) {
-      throw new Error('VITE_API_BASE_URL no está configurado en .env');
+      throw new ApiNotConfiguredError();
     }
     if (apiConfig.scopes.length === 0) {
       throw new Error('VITE_API_SCOPE no está configurado en .env');
@@ -83,15 +108,19 @@ export function createApiClient(
     const token = await acquireApiToken(instance, account);
     const url = `${apiConfig.baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
 
-    const response = await fetch(url, {
-      ...init,
-      headers: {
-        Accept: 'application/json',
-        ...(init.body ? { 'Content-Type': 'application/json' } : {}),
-        ...init.headers,
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    const headers = new Headers(init.headers);
+    if (!headers.has('Accept')) headers.set('Accept', 'application/json');
+    if (init.body != null && !headers.has('Content-Type')) {
+      headers.set('Content-Type', 'application/json');
+    }
+    headers.set('Authorization', `Bearer ${token}`);
+
+    let response: Response;
+    try {
+      response = await fetch(url, { ...init, headers });
+    } catch {
+      throw new ApiError(0, 'Network Error', null);
+    }
 
     const text = await response.text();
     const body = text ? safeJson(text) : null;
@@ -110,5 +139,6 @@ export function createApiClient(
     put: <T>(path: string, body: unknown) =>
       request<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
     del: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+    delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
   };
 }

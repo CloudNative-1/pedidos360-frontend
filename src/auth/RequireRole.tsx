@@ -1,76 +1,166 @@
-// src/RequireRole.tsx
-// Guard de AUTORIZACIÓN a nivel de ruta. Se anida DENTRO de <RequireAuth/> en
-// App.tsx, así que cuando este guard corre ya sabemos que hay sesión activa —
-// solo falta decidir si el usuario tiene el permiso para esta sección.
+// src/auth/RequireRole.tsx
 //
-// El claim "roles" de App Roles vive en el ACCESS TOKEN de la API (aud = tu
-// backend), no en el ID token del login — por eso pedimos el mismo token que
-// usa el resto del backend (acquireApiToken) y leemos sus claims, en vez de
-// mirar accounts[0].idTokenClaims (que no lo trae).
+// Guard de AUTORIZACIÓN por roles.
 //
-// Importante: esto SOLO oculta la vista en el navegador — es UX, no
-// seguridad. Un usuario podría llamar la API directamente sin pasar por este
-// guard, así que la Lambda debe volver a validar el rol con el mismo claim
-// (ver la guía, sección 8).
-import { useEffect, useState } from 'react';
+// RequireAuth comprueba primero que exista una sesión.
+// Después RequireRole obtiene el access token de Pedidos360-API,
+// lee el claim "roles" y comprueba si el usuario posee al menos
+// uno de los roles permitidos para acceder a la ruta.
+//
+// IMPORTANTE:
+// Esta validación mejora la navegación y experiencia del usuario,
+// pero NO reemplaza la autorización del backend.
+//
+// Más adelante:
+// API Gateway validará el JWT.
+// Python/Lambda validará también los roles necesarios para
+// realizar cada operación.
+
+import {
+  useEffect,
+  useState,
+} from 'react';
+
 import { Outlet } from 'react-router-dom';
+
 import { useMsal } from '@azure/msal-react';
+
 import { acquireApiToken } from '../api/client';
-import { decodeJwt } from '../utils/jwt';
+
+import { decodeJwt, rolesOf } from '../utils/jwt';
 
 interface RequireRoleProps {
-  role: string;
+  roles: readonly string[];
 }
 
-type Status = 'loading' | 'allowed' | 'denied';
+type Status =
+  | 'loading'
+  | 'allowed'
+  | 'denied';
 
-export function RequireRole({ role }: RequireRoleProps) {
-  const { instance, accounts } = useMsal();
-  const account = accounts[0] ?? instance.getActiveAccount();
-  const [status, setStatus] = useState<Status>('loading');
+export function RequireRole({
+  roles,
+}: RequireRoleProps) {
+
+  const {
+    instance,
+    accounts,
+  } = useMsal();
+
+  const account =
+    instance.getActiveAccount() ??
+    accounts[0] ??
+    null;
+
+  const rolesKey = roles.join('\u0000');
+  const evaluationKey = `${account?.homeAccountId ?? ''}:${rolesKey}`;
+  const [evaluation, setEvaluation] = useState<{
+    key: string;
+    status: Status;
+  } | null>(null);
+  const status = !account
+    ? 'denied'
+    : evaluation?.key === evaluationKey
+      ? evaluation.status
+      : 'loading';
 
   useEffect(() => {
-    // RequireAuth (el guard padre) ya garantiza que hay cuenta activa antes
-    // de llegar acá; el chequeo es solo defensivo.
-    if (!account) return;
+    if (!account || !rolesKey) {
+      return;
+    }
 
     let cancelled = false;
-    acquireApiToken(instance, account)
-      .then((token) => {
-        if (cancelled) return;
-        const claims = decodeJwt(token);
-        const roles = claims?.roles ?? [];
-        setStatus(roles.includes(role) ? 'allowed' : 'denied');
-      })
-      .catch(() => {
-        if (!cancelled) setStatus('denied');
-      });
+
+    const verificarRoles = async () => {
+      try {
+        const token =
+          await acquireApiToken(
+            instance,
+            account,
+          );
+
+        if (cancelled) {
+          return;
+        }
+
+        // Solo se decodifica para consultar los claims.
+        // La validación criptográfica será responsabilidad
+        // de API Gateway.
+        const claims =
+          decodeJwt(token);
+        const allowedRoles = new Set(rolesKey.split('\u0000'));
+        const hasAccess = rolesOf(claims).some((role) =>
+          allowedRoles.has(role),
+        );
+
+        if (!cancelled) {
+          setEvaluation({
+            key: evaluationKey,
+            status: hasAccess ? 'allowed' : 'denied',
+          });
+        }
+      } catch {
+        if (!cancelled) {
+          setEvaluation({ key: evaluationKey, status: 'denied' });
+        }
+      }
+    };
+
+    verificarRoles();
 
     return () => {
       cancelled = true;
     };
-  }, [instance, account, role]);
+  }, [account, evaluationKey, instance, rolesKey]);
 
-  if (!account || status === 'loading') {
+  // --------------------------------
+  // Verificando autorización
+  // --------------------------------
+
+  if (status === 'loading') {
     return (
-      <div className="card text-center">
-        <p>Verificando permisos…</p>
+      <div className="state-panel" role="status">
+
+        <h3>
+          Verificando permisos
+        </h3>
+
+        <p className="subtitle">
+          Estamos comprobando los permisos
+          asociados a tu cuenta.
+        </p>
+
       </div>
     );
   }
+
+  // --------------------------------
+  // Acceso denegado
+  // --------------------------------
 
   if (status === 'denied') {
     return (
-      <div className="card text-center">
-        <h2>Acceso restringido</h2>
+      <div className="state-panel state-error" role="alert">
+
+        <h2>
+          Acceso restringido
+        </h2>
+
         <p className="subtitle">
-          Esta sección requiere el App Role <code>{role}</code> en la API.
-          Pídele a un admin del tenant que te lo asigne en Entra ID
-          (Enterprise applications → tu API → Users and groups).
+          No fue posible confirmar que tu cuenta tenga acceso a esta sección.
         </p>
+        <p className="security-note">
+          Esta comprobación controla la experiencia de usuario. La autorización
+          real deberá aplicarse en API Gateway y en el backend.
+        </p>
+
       </div>
     );
   }
+
+  // --------------------------------
+  // Acceso autorizado
+  // --------------------------------
 
   return <Outlet />;
 }

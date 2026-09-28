@@ -1,34 +1,79 @@
-// src/api/pokemones.ts
-// Ruta de ejemplo del backend. Cada recurso nuevo va en su propio archivo y
-// reutiliza el ApiClient (que ya resuelve token + Authorization + errores).
+// src/api/catalogo.ts
+//
+// Funciones relacionadas con el catálogo de productos.
+// Este archivo no contiene componentes visuales.
+// Solo se encarga de comunicarse con el backend mediante ApiClient.
 
 import type { ApiClient } from './client';
 
 export interface Producto {
-  id?: number | string;
-  nombre?: string;
-  descripcion?: string;
-  precio?: number;
-  stock?: number;
-  [key: string]: unknown;
+  id: string | number;
+  nombre: string;
+  descripcion: string;
+  precio: number;
+  stock: number;
 }
 
-export async function listarCatalogo(api: ApiClient): Promise<Producto[]> {
-  const raw = await api.get<unknown>('/catalogo');
+export type CrearProductoRequest = Omit<Producto, 'id'>;
+export type ActualizarProductoRequest = Partial<CrearProductoRequest>;
 
-  if (Array.isArray(raw)) {
-    return raw as Producto[];
+interface CatalogoResponse {
+  items?: Producto[];
+  productos?: Producto[];
+  catalogo?: Producto[];
+  data?: Producto[];
+}
+
+function esProducto(value: unknown): value is Producto {
+  if (typeof value !== 'object' || value === null) return false;
+  const producto = value as Record<string, unknown>;
+  return (typeof producto.id === 'string' || typeof producto.id === 'number') &&
+    typeof producto.nombre === 'string' &&
+    typeof producto.descripcion === 'string' &&
+    typeof producto.precio === 'number' &&
+    typeof producto.stock === 'number';
+}
+
+function extraerProductos(response: unknown): Producto[] {
+  const candidate = Array.isArray(response)
+    ? response
+    : typeof response === 'object' && response !== null
+      ? (() => {
+          const wrapper = response as CatalogoResponse;
+          return wrapper.items ?? wrapper.productos ?? wrapper.catalogo ?? wrapper.data;
+        })()
+      : undefined;
+
+  if (!Array.isArray(candidate) || !candidate.every(esProducto)) {
+    throw new Error('La respuesta del catálogo tiene un formato no reconocido.');
   }
 
-  if (raw && typeof raw === 'object') {
-    const obj = raw as Record<string, unknown>;
+  return candidate;
+}
 
-    for (const key of ['items', 'data', 'productos', 'catalogo', 'results']) {
-      if (Array.isArray(obj[key])) {
-        return obj[key] as Producto[];
-      }
-    }
-  }
+export async function listarCatalogo(
+  api: ApiClient,
+): Promise<Producto[]> {
+  const response = await api.get<unknown>('/catalogo');
+  return extraerProductos(response);
+}
 
-  return [];
+export function obtenerProducto(api: ApiClient, id: string | number): Promise<Producto> {
+  return api.get<Producto>(`/catalogo/${encodeURIComponent(id)}`);
+}
+
+export function crearProducto(api: ApiClient, producto: CrearProductoRequest): Promise<Producto> {
+  return api.post<Producto>('/catalogo', producto);
+}
+
+export function actualizarProducto(
+  api: ApiClient,
+  id: string | number,
+  producto: ActualizarProductoRequest,
+): Promise<Producto> {
+  return api.put<Producto>(`/catalogo/${encodeURIComponent(id)}`, producto);
+}
+
+export function eliminarProducto(api: ApiClient, id: string | number): Promise<void> {
+  return api.delete<void>(`/catalogo/${encodeURIComponent(id)}`);
 }

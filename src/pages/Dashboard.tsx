@@ -1,38 +1,85 @@
-// src/Dashboard.tsx
-// Vista PROTEGIDA: solo se renderiza dentro del guard <RequireAuth/> (ver
-// App.tsx) — este componente asume que ya hay sesión activa.
+// src/pages/Dashboard.tsx
+//
+// Página principal privada de Pedidos360.
+// RequireAuth garantiza que solo pueda acceder un usuario autenticado.
+
 import { useMsal } from '@azure/msal-react';
+import { Link } from 'react-router-dom';
+
 import { TokenInspector } from '../components/TokenInspector';
-import { Catalogo } from '../pages/Catalogo';
 
 export function Dashboard() {
-  const { accounts } = useMsal();
-  const currentUser = accounts[0];
+  const { instance, accounts } = useMsal();
+
+  const currentUser =
+    instance.getActiveAccount() ??
+    accounts[0] ??
+    null;
+
+  const initial = currentUser?.name?.trim().charAt(0).toUpperCase() || 'P';
 
   return (
-    <div className="card">
-      <div className="avatar">
-        {currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'U'}
-      </div>
-      <h2>¡Bienvenido, {currentUser?.name || 'Usuario'}!</h2>
-      <p className="subtitle">Autenticado con Microsoft Entra ID</p>
-
-      <div className="user-details">
-        <div className="detail-item">
-          <strong>Correo / Usuario:</strong>
-          <span>{currentUser?.username}</span>
+    <section className="dashboard">
+      <header className="dashboard-header">
+        <div className="avatar">
+          {initial}
         </div>
-        <div className="detail-item">
-          <strong>Tenant ID:</strong>
-          <code>{currentUser?.tenantId}</code>
+
+        <div>
+          <p className="eyebrow">Inicio</p>
+          <h1>Hola, {currentUser?.name ?? 'bienvenido'}.</h1>
+
+          <p className="subtitle">
+            Sesión iniciada mediante Microsoft Entra ID.
+          </p>
         </div>
+      </header>
+
+      <div className="dashboard-grid">
+        <section className="surface">
+          <h2>Tu cuenta</h2>
+
+          <div className="user-details">
+            <div className="detail-item">
+              <span>Nombre</span>
+
+              <strong>
+                {currentUser?.name ?? 'No disponible'}
+              </strong>
+            </div>
+            <div className="detail-item">
+              <span>Correo o usuario</span>
+              <strong>{currentUser?.username ?? 'No disponible'}</strong>
+            </div>
+          </div>
+        </section>
+
+        <section className="surface">
+          <h2>Áreas de trabajo</h2>
+
+          <p className="subtitle">
+            Consulta las secciones disponibles para tu cuenta.
+          </p>
+
+          <div className="dashboard-summary">
+            <Link to="/catalogo" className="summary-link">
+              <strong>Catálogo</strong>
+              <span>Productos y disponibilidad</span>
+            </Link>
+
+            <Link to="/pedidos" className="summary-link">
+              <strong>Pedidos</strong>
+              <span>Consulta y seguimiento</span>
+            </Link>
+          </div>
+        </section>
       </div>
 
-      {/* Integración con el backend protegido (API Gateway + JWT authorizer) */}
-      <hr style={{ margin: '1.5rem 0', borderColor: '#eee' }} />
-      <TokenInspector />
-      <hr style={{ margin: '1.5rem 0', borderColor: '#eee' }} />
-      <Catalogo />
-    </div>
+      {import.meta.env.DEV && (
+        <section className="surface token-surface">
+          <TokenInspector />
+        </section>
+      )}
+    </section>
   );
 }

@@ -1,79 +1,164 @@
-// src/TokenInspector.tsx
-// Herramienta de aprendizaje: obtiene el access token para la API y muestra
-// sus claims relevantes para autorización (aud, scp, roles, exp).
+// src/components/TokenInspector.tsx
+//
+// Herramienta de desarrollo para inspeccionar los claims
+// del access token obtenido para la API de Pedidos360.
+
 import { useState } from 'react';
 import { useMsal } from '@azure/msal-react';
-import { acquireApiToken } from '../api/client';
-import { decodeJwt, scopesOf, type JwtClaims } from '../utils/jwt';
+
+import { acquireApiToken, apiErrorMessage } from '../api/client';
+
+import {
+  decodeJwt,
+  rolesOf,
+  scopesOf,
+  type JwtClaims,
+} from '../utils/jwt';
 
 export function TokenInspector() {
   const { instance, accounts } = useMsal();
+
+  const [claims, setClaims] =
+    useState<JwtClaims | null>(null);
+
   const [token, setToken] = useState<string | null>(null);
-  const [claims, setClaims] = useState<JwtClaims | null>(null);
-  const [error, setError] = useState<string | null>(null);
+
+  const [error, setError] =
+    useState<string | null>(null);
+
+  const [loading, setLoading] =
+    useState(false);
 
   const handleInspect = async () => {
-    setError(null);
-    const account = accounts[0] ?? instance.getActiveAccount();
+    const account =
+      instance.getActiveAccount() ??
+      accounts[0] ??
+      null;
+
     if (!account) {
-      setError('No hay sesión activa.');
+      setError(
+        'No existe una sesión activa.',
+      );
       return;
     }
+
     try {
-      const accessToken = await acquireApiToken(instance, account);
-      setToken(accessToken);
-      setClaims(decodeJwt(accessToken));
-      // Para pegar en jwt.ms:
-      console.log('[TokenInspector] access_token:', accessToken);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Error al obtener el token');
+      setLoading(true);
+      setError(null);
+
+      const token =
+        await acquireApiToken(
+          instance,
+          account,
+        );
+
+      const decoded =
+        decodeJwt(token);
+
+      if (!decoded) {
+        setError(
+          'No fue posible interpretar el access token.',
+        );
+
+        return;
+      }
+
+      setClaims(decoded);
+      setToken(token);
+    } catch (error) {
+      setError(apiErrorMessage(error));
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <div style={{ marginTop: '1.5rem', textAlign: 'left' }}>
-      <h3>Inspector de Access Token (API)</h3>
-      <button className="btn btn-login" onClick={handleInspect}>
-        Obtener e inspeccionar token
+    <section>
+      <h3>Token de acceso de Pedidos360-API</h3>
+
+      <p className="subtitle">
+        Información utilizada para comprobar
+        autenticación y autorización.
+      </p>
+
+      <button
+        className="btn btn-login"
+        onClick={handleInspect}
+        disabled={loading}
+      >
+        {loading
+          ? 'Obteniendo token...'
+          : 'Inspeccionar token'}
       </button>
 
-      {error && <p style={{ color: '#d9534f', marginTop: '1rem' }}>{error}</p>}
+      {error && (
+        <p className="error-message">
+          {error}
+        </p>
+      )}
 
       {claims && (
-        <div style={{ marginTop: '1rem', fontSize: '0.85rem' }}>
-          <div><strong>aud:</strong> <code>{String(claims.aud)}</code></div>
-          <div><strong>iss:</strong> <code>{String(claims.iss)}</code></div>
-          <div><strong>scp:</strong> <code>{scopesOf(claims).join(', ') || '(ninguno)'}</code></div>
-          <div><strong>roles:</strong> <code>{(claims.roles ?? []).join(', ') || '(ninguno)'}</code></div>
+        <div className="token-grid">
           <div>
-            <strong>exp:</strong>{' '}
-            <code>{claims.exp ? new Date(claims.exp * 1000).toLocaleString() : '?'}</code>
+            <span>Audience</span>
+            <code>
+              {String(
+                claims.aud ??
+                  'No disponible',
+              )}
+            </code>
+          </div>
+
+          <div>
+            <span>Issuer</span>
+            <code>
+              {String(
+                claims.iss ??
+                  'No disponible',
+              )}
+            </code>
+          </div>
+
+          <div>
+            <span>Scopes</span>
+            <code>
+              {scopesOf(claims).join(', ') ||
+                'Ninguno'}
+            </code>
+          </div>
+
+          <div>
+            <span>Roles</span>
+            <code>
+              {rolesOf(claims).join(', ') ||
+                'Ninguno'}
+            </code>
+          </div>
+
+          <div>
+            <span>Subject</span>
+            <code>{claims.sub ?? 'No disponible'}</code>
+          </div>
+
+          <div>
+            <span>Expiración</span>
+            <code>
+              {claims.exp
+                ? new Date(
+                    claims.exp * 1000,
+                  ).toLocaleString()
+                : 'No disponible'}
+            </code>
           </div>
         </div>
       )}
 
-      {token && (
-        <details style={{ marginTop: '1rem' }}>
-          <summary style={{ cursor: 'pointer', fontSize: '0.85rem' }}>
-            Ver token completo (pegar en jwt.ms)
-          </summary>
-          <pre
-            style={{
-              backgroundColor: '#2d2d2d',
-              color: '#67cdaa',
-              padding: '1rem',
-              borderRadius: '6px',
-              marginTop: '0.5rem',
-              fontSize: '0.75rem',
-              overflowX: 'auto',
-              wordBreak: 'break-all',
-              whiteSpace: 'pre-wrap',
-            }}
-          >
-            {token}
-          </pre>
+      {import.meta.env.DEV && token && (
+        <details className="token-details">
+          <summary>Mostrar access token completo (solo desarrollo)</summary>
+          <pre>{token}</pre>
         </details>
       )}
-    </div>
+    </section>
   );
 }

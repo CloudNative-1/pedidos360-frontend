@@ -1,80 +1,152 @@
 // src/App.tsx
-// Estructura de rutas + guards. Este es el archivo que muestra el concepto
-// "guard de ruta": RequireAuth agrupa TODAS las rutas que exigen sesión, y
-// RequireRole las que además exigen un App Role — se agregan más páginas
-// (orders, catalog, ...) anidándolas bajo el guard que corresponda, sin
-// repetir lógica de autenticación/autorización en cada una.
-import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom';
-import { useMsal, useIsAuthenticated } from '@azure/msal-react';
+//
+// Configuración principal de navegación y rutas de Pedidos360.
+//
+// RequireAuth:
+// - Comprueba que exista una sesión iniciada.
+//
+// RequireRole:
+// - Comprueba que el usuario tenga al menos uno de los roles
+//   permitidos para acceder a una ruta.
+//
+// Las rutas utilizan nombres en español para mantener
+// consistencia dentro del proyecto.
+
+import {
+  BrowserRouter,
+  NavLink,
+  Route,
+  Routes,
+} from 'react-router-dom';
+
+import {
+  useIsAuthenticated,
+  useMsal,
+} from '@azure/msal-react';
+
 import { InteractionStatus } from '@azure/msal-browser';
+
 import { loginRequest } from './auth/authConfig';
 import { RequireAuth } from './auth/RequireAuth';
 import { RequireRole } from './auth/RequireRole';
+
 import { Landing } from './pages/Landing';
 import { Dashboard } from './pages/Dashboard';
-import { AdminDemo } from './pages/AdminDemo';
+import { Catalogo } from './pages/Catalogo';
+import { Pedidos } from './pages/Pedidos';
+
 import './css/App.css';
+
+const ROLES_CATALOGO = ['Admin', 'Operador'] as const;
+const ROLES_PEDIDOS = ['Admin', 'Operador', 'Cliente'] as const;
 
 function Nav() {
   const { instance, inProgress } = useMsal();
+
   const isAuthenticated = useIsAuthenticated();
 
   const handleLogin = () => {
     if (inProgress === InteractionStatus.None) {
-      instance.loginRedirect(loginRequest).catch((e) => console.error(e));
+      instance
+        .loginRedirect(loginRequest)
+        .catch((error) => {
+          console.error(
+            'Error al iniciar sesión:',
+            error,
+          );
+        });
     }
   };
 
   const handleLogout = () => {
     if (inProgress === InteractionStatus.None) {
       instance
-        .logoutRedirect({ postLogoutRedirectUri: '/' })
-        .catch((e) => console.error(e));
+        .logoutRedirect({
+          postLogoutRedirectUri: '/',
+        })
+        .catch((error) => {
+          console.error(
+            'Error al cerrar sesión:',
+            error,
+          );
+        });
     }
   };
 
-  const linkClass = ({ isActive }: { isActive: boolean }) =>
-    isActive ? 'nav-link active' : 'nav-link';
+  const linkClass = ({
+    isActive,
+  }: {
+    isActive: boolean;
+  }) =>
+    isActive
+      ? 'nav-link active'
+      : 'nav-link';
 
   return (
     <header className="navbar">
-      <div className="logo">
-        ⚡ <span>Portal MiApp</span>
-      </div>
+
+      <NavLink
+        to="/"
+        className="logo"
+      >
+        <span>Pedidos360</span>
+      </NavLink>
 
       {isAuthenticated && (
         <nav className="nav-links">
-          <NavLink to="/dashboard" className={linkClass}>
-            Dashboard
+
+          <NavLink
+            to="/dashboard"
+            className={linkClass}
+          >
+            Inicio
           </NavLink>
-          {/* Sin el App Role "Admin" asignado, RequireRole igual bloquea el
-              contenido — el link queda visible a propósito para poder
-              demostrar el guard de autorización en vivo. */}
-          <NavLink to="/admin" className={linkClass}>
-            Admin
+
+          <NavLink
+            to="/catalogo"
+            className={linkClass}
+          >
+            Catálogo
           </NavLink>
+
+          <NavLink
+            to="/pedidos"
+            className={linkClass}
+          >
+            Pedidos
+          </NavLink>
+
         </nav>
       )}
 
-      <div>
+      <div className="nav-actions">
+
         {isAuthenticated ? (
           <button
             className="btn btn-logout"
             onClick={handleLogout}
-            disabled={inProgress !== InteractionStatus.None}
+            disabled={
+              inProgress !==
+              InteractionStatus.None
+            }
           >
-            Cerrar Sesión
+            Cerrar sesión
           </button>
         ) : (
           <button
             className="btn btn-login"
             onClick={handleLogin}
-            disabled={inProgress !== InteractionStatus.None}
+            disabled={
+              inProgress !==
+              InteractionStatus.None
+            }
           >
-            Iniciar Sesión
+            Iniciar sesión
           </button>
         )}
+
       </div>
+
     </header>
   );
 }
@@ -82,27 +154,88 @@ function Nav() {
 export default function App() {
   return (
     <BrowserRouter>
+
       <div className="layout">
+
         <Nav />
+
         <main className="container">
+
           <Routes>
-            {/* Pública: no está bajo RequireAuth */}
-            <Route path="/" element={<Landing />} />
 
-            {/* Guard de AUTENTICACIÓN: agrupa las rutas que exigen sesión */}
+            {/* ============================== */}
+            {/* RUTA PÚBLICA                   */}
+            {/* ============================== */}
+
+            <Route
+              path="/"
+              element={<Landing />}
+            />
+
+            {/* ============================== */}
+            {/* RUTAS AUTENTICADAS             */}
+            {/* ============================== */}
+
             <Route element={<RequireAuth />}>
-              <Route path="/dashboard" element={<Dashboard />} />
 
-              {/* Guard de AUTORIZACIÓN anidado: además exige el rol Admin */}
-              <Route element={<RequireRole role="Admin" />}>
-                <Route path="/admin" element={<AdminDemo />} />
+              {/* Dashboard:
+                  cualquier usuario autenticado */}
+              <Route
+                path="/dashboard"
+                element={<Dashboard />}
+              />
+
+              {/* ============================== */}
+              {/* CATÁLOGO                       */}
+              {/* ============================== */}
+
+              <Route
+                element={
+                  <RequireRole
+                    roles={ROLES_CATALOGO}
+                  />
+                }
+              >
+                <Route
+                  path="/catalogo"
+                  element={<Catalogo />}
+                />
               </Route>
+
+              {/* ============================== */}
+              {/* PEDIDOS                        */}
+              {/* ============================== */}
+
+              <Route
+                element={
+                  <RequireRole
+                    roles={ROLES_PEDIDOS}
+                  />
+                }
+              >
+                <Route
+                  path="/pedidos"
+                  element={<Pedidos />}
+                />
+              </Route>
+
             </Route>
 
-            <Route path="*" element={<Landing />} />
+            {/* ============================== */}
+            {/* RUTA NO ENCONTRADA              */}
+            {/* ============================== */}
+
+            <Route
+              path="*"
+              element={<Landing />}
+            />
+
           </Routes>
+
         </main>
+
       </div>
+
     </BrowserRouter>
   );
 }
