@@ -1,14 +1,18 @@
 # Pedidos360 Frontend
 
-Aplicación web para autenticación y gestión de catálogo/pedidos. El backend aún no está configurado; la interfaz informa este estado y no muestra datos inventados.
+Aplicación web (SPA) de Pedidos360: login real con Microsoft Entra ID vía MSAL, paneles por rol (Admin / Operador / Cliente), compra de productos de demostración y consulta/gestion de pedidos contra el backend real desplegado en AWS.
 
-## Tecnologías
+## Arquitectura
 
-- React y TypeScript
-- Vite
-- React Router
-- `@azure/msal-browser` y `@azure/msal-react`
-- Microsoft Entra ID
+```
+React 19 + TypeScript + Vite
+  → @azure/msal-react / @azure/msal-browser (Authorization Code + PKCE)
+  → Microsoft Entra ID (access token JWT v2 para Pedidos360-API)
+  → API Gateway HTTP API (JWT Authorizer)
+  → Lambda Python 3.14 → DynamoDB
+```
+
+El navegador pide un access token de Pedidos360-API, lo envía como `Authorization: Bearer <token>` y **nunca** usa `127.0.0.1:5173` como URL de API. El backend real es `https://o3k66b0owk.execute-api.us-east-1.amazonaws.com`.
 
 ## Requisitos e inicio
 
@@ -17,66 +21,75 @@ Se requiere Node.js 20.19+ o 22.12+ y npm para Vite 8.
 ```bash
 npm install
 npm run dev
-npm run build
 npm run lint
+npm run build
 ```
 
-Abre siempre el desarrollo en `http://localhost:5173`, el origen configurado para Entra ID y API Gateway.
+Abre siempre el desarrollo en `http://localhost:5173` (el origen configurado para Entra ID, CORS de API Gateway y el redirect de MSAL; usa `strictPort`).
+
+> El build emite un aviso no bloqueante de chunk > 500 kB (Rolldown). No es un error: `tsc -b && vite build` termina correctamente.
 
 ## Variables de entorno
 
-Crea `.env` a partir de `.env.example` y configura los valores de tus App Registrations. No publiques `.env`; está ignorado por Git. El Client ID y Tenant ID identifican aplicaciones/directorios, pero no son secretos. Esta SPA no debe contener `client_secret`, claves de AWS ni contraseñas.
+Crea `.env` a partir de `.env.example`. No publiques `.env`; está ignorado por Git. El Client ID y Tenant ID identifican aplicaciones/directorios pero no son secretos. Esta SPA no contiene `client_secret`, claves de AWS ni contraseñas.
 
 ```dotenv
-VITE_AZURE_CLIENT_ID=<client-id-de-Pedidos360-Frontend>
-VITE_AZURE_TENANT_ID=<tenant-id>
+VITE_AZURE_CLIENT_ID=36e00abf-45a0-43a4-991d-c50baaa646f9
+VITE_AZURE_TENANT_ID=4b0c585d-b153-4a09-9342-8df80ff8962b
 VITE_AZURE_REDIRECT_URI=http://localhost:5173
-VITE_API_BASE_URL=
+VITE_API_BASE_URL=https://o3k66b0owk.execute-api.us-east-1.amazonaws.com
 VITE_API_SCOPE=api://<client-id-de-Pedidos360-API>/catalog.read api://<client-id-de-Pedidos360-API>/catalog.write api://<client-id-de-Pedidos360-API>/orders.read api://<client-id-de-Pedidos360-API>/orders.write
 ```
 
-`VITE_API_BASE_URL` permanece vacío hasta que se despliegue API Gateway. No se define una URL local o ficticia para el backend.
-
 ## Microsoft Entra ID
 
-Registra dos aplicaciones en el tenant:
+Se registran dos aplicaciones en el tenant `4b0c585d-b153-4a09-9342-8df80ff8962b`:
 
-- **Pedidos360-Frontend**: aplicación SPA con Redirect URI `http://localhost:5173`.
-- **Pedidos360-API**: expone `api://<client-id-de-Pedidos360-API>` y define permisos delegados.
+- **Pedidos360-Frontend** (SPA): client id `36e00abf-45a0-43a4-991d-c50baaa646f9`, Redirect URI `http://localhost:5173`.
+- **Pedidos360-API**: client id `7a88281a-780d-49a9-9cb7-d0bc4333f5c4`; expone scopes `catalog.read`, `catalog.write`, `orders.read`, `orders.write` y App Roles `Admin`, `Operador`, `Cliente`.
 
-Los scopes existentes son exactamente `catalog.read`, `catalog.write`, `orders.read` y `orders.write`. En `VITE_API_SCOPE` se solicitan con el prefijo `api://<client-id-de-Pedidos360-API>/`.
+Los scopes se solicitan con el prefijo `api://<client-id-de-Pedidos360-API>/` en `VITE_API_SCOPE`; el audience (`aud`) del access token resultante es el GUID `7a88281a-780d-49a9-9cb7-d0bc4333f5c4` (no `api://GUID`), que es el valor configurado en el JWT Authorizer del backend.
 
-Los App Roles existentes son exactamente `Admin`, `Operador` y `Cliente`. Asigna estos roles a los usuarios/grupos en la aplicación empresarial de Pedidos360-API.
+## Inicio de sesión y paneles por rol
 
-## Inicio de sesión y autorización
+- La ruta `/` es pública (login/logout con MSAL, `prompt: select_account`; cambio de cuenta y logout funcionales).
+- `/inicio` (destino de "Continuar al panel") resuelve el panel según el rol del access token:
+  - **Admin** → `/admin` (Panel de Administración: contadores reales de la API y CRUD de catálogo).
+  - **Operador** → `/operador` (Panel de Operaciones: catálogo solo lectura y gestión de pedidos).
+  - **Cliente** → `/cliente` (Inicio de Cliente: "Comprar" y "Mis pedidos"). No tiene acceso a `/catalogo`.
 
-La ruta `/` es pública. Al elegir **Iniciar sesión con Microsoft**, MSAL usa la autoridad del tenant y el redirect configurado. Las rutas `/dashboard`, `/catalogo` y `/pedidos` requieren autenticación. `/catalogo` admite `Admin` y `Operador`; `/pedidos` admite `Admin`, `Operador` y `Cliente`.
+`RequireRole` lee `roles` del access token de Pedidos360-API; el hook de autorización también lee `scp` para ajustar la experiencia. Estas comprobaciones son controles UX, no una frontera de seguridad: API Gateway valida el JWT y Lambda reautoriza rol/scope/ownership en cada operación.
 
-Autenticación confirma que existe una sesión. Autorización determina qué puede consultar o intentar hacer esa cuenta. `RequireRole` consulta `roles` del access token de Pedidos360-API; el hook de autorización también lee `scp` del mismo token para ajustar la experiencia. Los roles y scopes no son equivalentes.
+### Flujo del Cliente
 
-Estas comprobaciones del frontend son controles UX, no una frontera de seguridad. API Gateway deberá validar el JWT y el backend Python/Lambda deberá volver a autorizar roles, scopes y reglas de negocio en cada operación.
+El Cliente compra en `/comprar`: una galería con los 6 productos de demostración sembrados en DynamoDB (`scripts/seed_products.py` del backend: `prod-teclado-001` … `prod-soporte-006`), arma un carrito temporal en React y confirma con `POST /pedidos` real. El backend valida existencia y stock, calcula precios y total, y deriva `clienteId` del JWT; el pedido se crea en estado `CREADO`. Desde "Mis pedidos" (`/pedidos`) el Cliente ve **solo sus pedidos** (ownership por `oid`); no puede crear pedidos desde esa pantalla ni cambiar estados.
+
+## Rutas
+
+| Ruta | Quién | Contenido |
+| --- | --- | --- |
+| `/` | público | Login / Landing |
+| `/catalogo-demo` | público | Mini catálogo de animales (demo etiquetada) |
+| `/inicio` | autenticado | Resuelve el panel por rol |
+| `/admin` | Admin | Panel de Administración |
+| `/operador` | Operador | Panel de Operaciones |
+| `/cliente` | Cliente | Inicio de Cliente |
+| `/comprar` | Cliente | Vista de compra con carrito |
+| `/catalogo` | Admin, Operador | Catálogo (Admin: CRUD; Operador: lectura) |
+| `/pedidos` | Admin, Operador, Cliente | Pedidos (Cliente: solo los suyos, sin creación) |
+| `/perfil` | autenticado | Perfil y diagnóstico de sesión |
 
 ## Flujo de token
 
-MSAL obtiene el access token destinado a Pedidos360-API mediante `acquireTokenSilent`; cuando hace falta interacción, solicita un redirect. `ApiClient` añade ese access token como `Authorization: Bearer <access_token>`. El ID token no se envía al backend. El token no se guarda manualmente: MSAL administra su caché.
+MSAL obtiene el access token de Pedidos360-API con `acquireTokenSilent` y hace redirect interactivo solo cuando es necesario. `ApiClient` añade `Authorization: Bearer <access_token>`; el ID token no se envía al backend y no se guardan tokens manualmente (la caché la administra MSAL). `decodeJwt()` solo decodifica el payload para UX/inspección: no valida firma, issuer, audience ni vigencia; eso lo hace el authorizer y la Lambda.
 
-MSAL Browser implementa Authorization Code Flow para SPA con PKCE y gestiona `state` y `nonce`. Esos valores no se construyen manualmente en el código de negocio. `decodeJwt()` solo decodifica el payload para inspeccionar claims; no valida firma, issuer, audience ni vigencia. Esa validación corresponde al authorizer.
-
-En modo desarrollo, **TokenInspector** permite comprobar `aud`, `iss`, `sub`, `scp`, `roles` y `exp`. El token completo, si se necesita para la demostración, queda tras un detalle cerrado y solo se muestra en desarrollo.
-
-## Rutas y datos
-
-- `/`: inicio de sesión público.
-- `/dashboard`: resumen de cuenta para cualquier usuario autenticado.
-- `/catalogo`: consulta de catálogo para `Admin` y `Operador`.
-- `/pedidos`: consulta/creación/cambio de estado según rol y scope.
-
-Los endpoints preparados conservan nombres en español: `/catalogo`, `/catalogo/{id}`, `/pedidos`, `/pedidos/{id}` y `/pedidos/{id}/estado`. Mientras no exista API, catálogo y pedidos muestran el estado de backend pendiente y no crean datos de demostración.
+MSAL Browser implementa Authorization Code Flow con PKCE y gestiona `state` y `nonce` sin código manual. En desarrollo, **TokenInspector** (Panel de Administración) permite comprobar `aud`, `iss`, `sub`, `scp`, `roles` y `exp`; el token completo queda tras un detalle cerrado y solo se muestra en dev.
 
 ## Cerrar sesión
 
-El botón **Cerrar sesión** inicia el cierre de sesión de Entra ID y vuelve a `/`.
+**Cerrar sesión** inicia el logout de Entra ID y vuelve a `/`; **Cambiar cuenta** abre el selector de cuentas de Microsoft (`select_account`).
 
-## Backend pendiente
+## Documentación relacionada
 
-API Gateway, su JWT Authorizer, el backend Python en AWS Lambda y DynamoDB todavía no forman parte de este frontend. Las respuestas 401/403/404/500 y los errores de conexión se presentan con mensajes comprensibles cuando el servicio esté conectado.
+- Backend: repositorio `CloudNative-1/pedidos360-backend` (rama `final/rubrica-pedidos360`) — README, OpenAPI, `docs/evidencias/rubrica-final.md`.
+- Ambos repos trabajan en la rama `final/rubrica-pedidos360`; no se publican secretos ni credenciales.
