@@ -4,7 +4,7 @@
 // según el rol.
 import { useState } from 'react';
 import { ArrowRight, Boxes, ShieldCheck } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useMsal, useIsAuthenticated } from '@azure/msal-react';
 import { InteractionStatus } from '@azure/msal-browser';
 import { loginRequest } from '../auth/authConfig';
@@ -43,7 +43,15 @@ export function Landing() {
   const { instance, inProgress } = useMsal();
   const isAuthenticated = useIsAuthenticated();
   const [error, setError] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
   const accountRequest = { ...loginRequest, prompt: 'select_account' as const };
+
+  // "Cambiar cuenta" deja este aviso tras cerrar la sesión en Microsoft:
+  // aclara que hay que elegir de nuevo la cuenta con la que se entra.
+  const avisoCambioCuenta =
+    searchParams.get('cambiarCuenta') === '1' && !isAuthenticated
+      ? 'Sesión cerrada. Elige con qué cuenta quieres entrar.'
+      : null;
 
   const handleLogin = () => {
     if (inProgress === InteractionStatus.None) {
@@ -106,6 +114,7 @@ export function Landing() {
             Ingresar con otra cuenta
           </button>
           <p className="welcome-security"><ShieldCheck size={15} /> Inicio de sesión seguro con Microsoft Entra ID</p>
+          {avisoCambioCuenta && <p className="inline-error" role="status">{avisoCambioCuenta}</p>}
           {error && <p className="inline-error" role="alert">{error}</p>}
         </div>
         <WelcomeArt />

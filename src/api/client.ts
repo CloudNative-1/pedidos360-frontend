@@ -5,7 +5,6 @@
 // hermanos (p.ej. src/api/xxxx.ts) usando este cliente.
 
 import type { IPublicClientApplication, AccountInfo } from '@azure/msal-browser';
-import { InteractionRequiredAuthError } from '@azure/msal-browser';
 import { apiConfig, apiRequest } from '../auth/authConfig';
 import { decodeJwt, rolesOf, scopesOf } from '../utils/jwt';
 
@@ -81,27 +80,65 @@ function safeJson(text: string): unknown {
   }
 }
 
+// Solicitud de token en curso, compartida por toda la aplicación.
+//
+// Al abrir una pantalla protegida piden el token varias piezas a la vez:
+// el guard de rol (RequireRole), `useAuthorization` y la propia página.
+// Si cada una lanza su propio `acquireTokenSilent` compiten por la misma
+// caché: solo una consigue cerrar el ciclo, las demás fallan y la vista
+// se queda vacía sin datos. Se comparte una única promesa por cuenta.
+let pendingApiToken: { key: string; promise: Promise<string> } | null = null;
+
+// Marca que en esta carga de página ya se abrió una redirección a Microsoft.
+// El módulo se reinicia en cada recarga, así que no queda pegado: solo
+// evita que varias piezas abran la redirección a la vez.
+let redirectStarted = false;
+
 /**
  * Obtiene un access token para el backend (aud = tu API).
- * - Intenta silenciosamente (acquireTokenSilent → usa cache o iframe oculto).
- * - Si falla (consentimiento nuevo, sesión expirada, MFA, o el iframe silencioso
- *   no funciona por bloqueo de cookies de terceros → error `timed_out`),
- *   cae a un redirect interactivo para obtener/consentir el scope de la API.
- *   El redirect recarga la página; al volver, MSAL ya tiene el token en cache.
+ * - Intenta silenciosamente (acquireTokenSilent → caché de MSAL).
+ * - Si el intento silencioso falla por CUALQUIER motivo (token no
+ *   cacheado, iframe bloqueado por cookies de terceros, timeout,
+ *   consentimiento nuevo) se pide el token de forma interactiva.
+ *   Limitarlo a `InteractionRequiredAuthError` dejaba la aplicación sin
+ *   token y sin explicación: los guards caían en "acceso denegado" y las
+ *   pantallas no cargaban nada.
+ * - El redirect no vuelve en esta misma llamada: navega a Microsoft y la
+ *   respuesta llega al volver a la app, donde el token ya está en caché.
  */
 export async function acquireApiToken(
   instance: IPublicClientApplication,
   account: AccountInfo,
 ): Promise<string> {
-  try {
-    const result = await instance.acquireTokenSilent({ ...apiRequest, account });
-    return result.accessToken;
-  } catch (error) {
-    if (error instanceof InteractionRequiredAuthError) {
-      // No vuelve: la página navega a Entra y regresa al redirectUri.
-      await instance.acquireTokenRedirect({ ...apiRequest, account });
+  const key = account.homeAccountId;
+  if (pendingApiToken?.key === key) {
+    return pendingApiToken.promise;
+  }
+
+  const promise = (async () => {
+    try {
+      const result = await instance.acquireTokenSilent({ ...apiRequest, account });
+      return result.accessToken;
+    } catch (error) {
+      // Varias piezas fallan a la vez: solo una debe abrir la redirección.
+      if (!redirectStarted) {
+        redirectStarted = true;
+        void instance.acquireTokenRedirect({ ...apiRequest, account }).catch(() => {
+          redirectStarted = false;
+          console.error('No se pudo abrir Microsoft para autorizar el acceso a la API.');
+        });
+      }
+      throw error;
     }
-    throw error;
+  })();
+
+  pendingApiToken = { key, promise };
+  try {
+    return await promise;
+  } finally {
+    if (pendingApiToken?.promise === promise) {
+      pendingApiToken = null;
+    }
   }
 }
 

@@ -6,7 +6,6 @@ import { useMsal } from '@azure/msal-react';
 import { useAuthorization } from '../useAuthorization';
 import { Sidebar } from './Sidebar';
 import { resolveActiveAccount } from '../../auth/activeAccount';
-import { loginRequest } from '../../auth/authConfig';
 import { rutaInicioPorRol } from '../../utils/rolInicio';
 
 const routeTitles: Record<string, string> = {
@@ -44,12 +43,22 @@ export function AppShell() {
 
   function changeAccount() {
     if (inProgress === InteractionStatus.None) {
-      // Olvidar la cuenta activa ANTES de pedir una nueva: así el selector
-      // de Microsoft define la identidad y el LOGIN_SUCCESS marca la elegida.
+      // "Cambiar cuenta" cierra la sesión de Microsoft antes de volver al
+      // ingreso. Es el paso que faltaba: mientras la cookie de SSO siga
+      // viva, Microsoft revalida en silencio la MISMA cuenta en el
+      // redirect y el selector nunca llega a aparecer, por lo que se
+      // volvía al mismo paso sin cambiar la identidad. Al volver, la
+      // pantalla de ingreso ofrece "Ingresar con otra cuenta", que sí
+      // abre el selector y deja que la cuenta elegida sea la activa.
       instance.setActiveAccount(null);
-      void instance.loginRedirect({ ...loginRequest, prompt: 'select_account' }).catch(() => {
-        console.error('No se pudo abrir el selector de cuentas de Microsoft.');
-      });
+      void instance
+        .logoutRedirect({
+          account,
+          postLogoutRedirectUri: `${window.location.origin}/?cambiarCuenta=1`,
+        })
+        .catch(() => {
+          console.error('No se pudo cambiar la cuenta de Microsoft.');
+        });
     }
   }
 
