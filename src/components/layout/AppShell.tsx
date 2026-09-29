@@ -41,27 +41,6 @@ export function AppShell() {
     }
   }
 
-  function changeAccount() {
-    if (inProgress === InteractionStatus.None) {
-      // "Cambiar cuenta" cierra la sesión de Microsoft antes de volver al
-      // ingreso. Es el paso que faltaba: mientras la cookie de SSO siga
-      // viva, Microsoft revalida en silencio la MISMA cuenta en el
-      // redirect y el selector nunca llega a aparecer, por lo que se
-      // volvía al mismo paso sin cambiar la identidad. Al volver, la
-      // pantalla de ingreso ofrece "Ingresar con otra cuenta", que sí
-      // abre el selector y deja que la cuenta elegida sea la activa.
-      instance.setActiveAccount(null);
-      void instance
-        .logoutRedirect({
-          account,
-          postLogoutRedirectUri: `${window.location.origin}/?cambiarCuenta=1`,
-        })
-        .catch(() => {
-          console.error('No se pudo cambiar la cuenta de Microsoft.');
-        });
-    }
-  }
-
   return (
     <div className="app-shell">
       <Sidebar
@@ -73,7 +52,6 @@ export function AppShell() {
         canSeeOrders={canSeeOrders}
         open={menuOpen}
         logout={logout}
-        changeAccount={changeAccount}
         logoutDisabled={inProgress !== InteractionStatus.None}
         onNavigate={() => setMenuOpen(false)}
       />

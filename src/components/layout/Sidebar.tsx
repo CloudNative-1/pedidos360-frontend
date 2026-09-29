@@ -12,7 +12,6 @@ interface SidebarProps {
   canSeeOrders: boolean;
   open: boolean;
   logout: () => void;
-  changeAccount: () => void;
   logoutDisabled: boolean;
   onNavigate: () => void;
 }
@@ -26,7 +25,6 @@ export function Sidebar({
   canSeeOrders,
   open,
   logout,
-  changeAccount,
   logoutDisabled,
   onNavigate,
 }: SidebarProps) {
@@ -83,7 +81,6 @@ export function Sidebar({
         username={username}
         roles={roles}
         onLogout={logout}
-        onChangeAccount={changeAccount}
         logoutDisabled={logoutDisabled}
       />
     </aside>

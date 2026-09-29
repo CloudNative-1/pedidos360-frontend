@@ -1,15 +1,14 @@
-import { ArrowLeftRight, LogOut } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 
 interface SidebarUserProps {
   userName: string;
   username: string;
   roles: string[];
   onLogout: () => void;
-  onChangeAccount: () => void;
   logoutDisabled: boolean;
 }
 
-export function SidebarUser({ userName, username, roles, onLogout, onChangeAccount, logoutDisabled }: SidebarUserProps) {
+export function SidebarUser({ userName, username, roles, onLogout, logoutDisabled }: SidebarUserProps) {
   const initials = userName.trim().split(/\s+/).slice(0, 2).map((part) => part[0]?.toUpperCase()).join('');
 
   return (
@@ -23,9 +22,8 @@ export function SidebarUser({ userName, username, roles, onLogout, onChangeAccou
         </span>
       </div>
       <div className="sidebar-account-actions">
-        <button className="sidebar-logout" onClick={onChangeAccount} disabled={logoutDisabled}>
-          <ArrowLeftRight size={17} strokeWidth={1.8} /><span>Cambiar cuenta</span>
-        </button>
+        {/* Una sola salida del panel. Para entrar con otra cuenta se cierra
+            la sesión y se vuelve a iniciar sesión eligiendo la cuenta. */}
         <button className="sidebar-logout" onClick={onLogout} disabled={logoutDisabled}>
           <LogOut size={17} strokeWidth={1.8} /><span>Cerrar sesión</span>
         </button>
