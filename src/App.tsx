@@ -29,6 +29,7 @@ import { InteractionStatus } from '@azure/msal-browser';
 import { loginRequest } from './auth/authConfig';
 import { RequireAuth } from './auth/RequireAuth';
 import { RequireRole } from './auth/RequireRole';
+import { useAuthorization } from './components/useAuthorization';
 
 import { Landing } from './pages/Landing';
 import { Dashboard } from './pages/Dashboard';
@@ -42,8 +43,10 @@ const ROLES_PEDIDOS = ['Admin', 'Operador', 'Cliente'] as const;
 
 function Nav() {
   const { instance, inProgress } = useMsal();
-
   const isAuthenticated = useIsAuthenticated();
+  const authorization = useAuthorization();
+  const canSeeCatalog = authorization.roles.some((role) => role === 'Admin' || role === 'Operador');
+  const canSeeOrders = authorization.roles.some((role) => role === 'Admin' || role === 'Operador' || role === 'Cliente');
 
   const handleLogin = () => {
     if (inProgress === InteractionStatus.None) {
@@ -102,19 +105,17 @@ function Nav() {
             Inicio
           </NavLink>
 
-          <NavLink
-            to="/catalogo"
-            className={linkClass}
-          >
-            Catálogo
-          </NavLink>
+          {canSeeCatalog && (
+            <NavLink to="/catalogo" className={linkClass}>
+              Catálogo
+            </NavLink>
+          )}
 
-          <NavLink
-            to="/pedidos"
-            className={linkClass}
-          >
-            Pedidos
-          </NavLink>
+          {canSeeOrders && (
+            <NavLink to="/pedidos" className={linkClass}>
+              Pedidos
+            </NavLink>
+          )}
 
         </nav>
       )}

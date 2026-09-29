@@ -7,9 +7,11 @@ import { useMsal } from '@azure/msal-react';
 import { Link } from 'react-router-dom';
 
 import { TokenInspector } from '../components/TokenInspector';
+import { useAuthorization } from '../components/useAuthorization';
 
 export function Dashboard() {
   const { instance, accounts } = useMsal();
+  const authorization = useAuthorization();
 
   const currentUser =
     instance.getActiveAccount() ??
@@ -62,15 +64,19 @@ export function Dashboard() {
           </p>
 
           <div className="dashboard-summary">
-            <Link to="/catalogo" className="summary-link">
-              <strong>Catálogo</strong>
-              <span>Productos y disponibilidad</span>
-            </Link>
+            {authorization.roles.some((role) => role === 'Admin' || role === 'Operador') && (
+              <Link to="/catalogo" className="summary-link">
+                <strong>Catálogo</strong>
+                <span>Productos y disponibilidad</span>
+              </Link>
+            )}
 
-            <Link to="/pedidos" className="summary-link">
-              <strong>Pedidos</strong>
-              <span>Consulta y seguimiento</span>
-            </Link>
+            {authorization.roles.some((role) => role === 'Admin' || role === 'Operador' || role === 'Cliente') && (
+              <Link to="/pedidos" className="summary-link">
+                <strong>Pedidos</strong>
+                <span>Consulta y seguimiento</span>
+              </Link>
+            )}
           </div>
         </section>
       </div>

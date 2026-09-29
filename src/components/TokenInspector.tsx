@@ -136,11 +136,6 @@ export function TokenInspector() {
           </div>
 
           <div>
-            <span>Subject</span>
-            <code>{claims.sub ?? 'No disponible'}</code>
-          </div>
-
-          <div>
             <span>Expiración</span>
             <code>
               {claims.exp

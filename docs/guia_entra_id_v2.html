@@ -180,7 +180,7 @@ catalog.read   &rarr; Ver cat&aacute;logo
 catalog.write  &rarr; Administrar cat&aacute;logo</code></pre>
 Para cada uno: qui&eacute;n puede dar consentimiento (recomendado: <em>Admins y usuarios</em> para simplificar el examen), nombre visible y descripci&oacute;n.
 </div></div>
-<div class="step"><div class="num">5</div><div class="content"><strong>App roles</strong> (men&uacute; lateral) &rarr; creen los roles del negocio: <code>Admin</code>, <code>Operador</code>, <code>Cliente</code> y <code>Auditor</code>. Tipo permitido: <em>Users/Groups</em>. Estos son los roles que despu&eacute;s van a aparecer dentro del token como claim <code>roles</code>.</div></div>
+<div class="step"><div class="num">5</div><div class="content"><strong>App roles</strong> (men&uacute; lateral) &rarr; creen los roles del negocio: <code>Admin</code>, <code>Operador</code> y <code>Cliente</code>. Tipo permitido: <em>Users/Groups</em>. Estos son los roles que despu&eacute;s van a aparecer dentro del token como claim <code>roles</code>.</div></div>
 <div class="step"><div class="num">6</div><div class="content">
 <span class="badge new">v2</span> <strong>Manifest &rarr; <code>requestedAccessTokenVersion</code>.</strong> Abran <em>Manifest</em> (pesta&ntilde;a "Microsoft Graph App Manifest"), busquen el objeto <code>"api"</code> y cambien:
 <pre><code>"api": {
@@ -213,7 +213,7 @@ Si se les olvida el <em>Grant admin consent</em>, el login funciona pero <code>a
 <h2 id="roles">5. Asignar roles a los usuarios de prueba</h2>
 <p>Como estamos en Entra ID est&aacute;ndar (no External ID), los usuarios no se auto-registran &mdash; el administrador del tenant los crea.</p>
 <div class="step"><div class="num">1</div><div class="content"><strong>Usuarios &rarr; Nuevo usuario</strong> &rarr; creen 2-3 cuentas de prueba (ej: <code>admin@&lt;tenant&gt;.onmicrosoft.com</code>, <code>operador@...</code>, <code>cliente@...</code>).</div></div>
-<div class="step"><div class="num">2</div><div class="content">Vayan a <strong>Enterprise applications &rarr; Pedidos360-API &rarr; Users and groups &rarr; Add user/group</strong>, y asignen a cada cuenta uno de los App Roles existentes: Admin, Operador, Cliente o Auditor.</div></div>
+<div class="step"><div class="num">2</div><div class="content">Vayan a <strong>Enterprise applications &rarr; Pedidos360-API &rarr; Users and groups &rarr; Add user/group</strong>, y asignen a cada cuenta uno de los App Roles existentes: Admin, Operador o Cliente.</div></div>
 <div class="step"><div class="num">3</div><div class="content">Cuando ese usuario inicie sesi&oacute;n desde el frontend, el <code>access_token</code> traer&aacute; el claim <code>"roles": ["Operador"]</code> (por ejemplo) &mdash; eso es lo que despu&eacute;s el backend usa para autorizar.</div></div>
 
 <div class="callout">
@@ -423,7 +423,7 @@ Un guard de rol es <strong>UX, no seguridad</strong>: solo evita que el bot&oacu
   &lt;/Route&gt;
 &lt;/Routes&gt;</code></pre>
 
-<p>Las rutas del frontend son <code>/dashboard</code>, <code>/catalogo</code> y <code>/pedidos</code>. El dashboard requiere sesi&oacute;n; el cat&aacute;logo permite <code>Admin</code> y <code>Operador</code>, y pedidos permite <code>Admin</code>, <code>Operador</code> y <code>Cliente</code>. <code>Auditor</code> no accede a esas dos secciones.</p>
+<p>Las rutas del frontend son <code>/dashboard</code>, <code>/catalogo</code> y <code>/pedidos</code>. El dashboard requiere sesi&oacute;n; el cat&aacute;logo permite <code>Admin</code> y <code>Operador</code>, y pedidos permite <code>Admin</code>, <code>Operador</code> y <code>Cliente</code>.</p>
 
 <div class="callout">
 El frontend Pedidos360 implementa <code>RequireAuth</code> para rutas privadas y <code>RequireRole</code> para cat&aacute;logo y pedidos. La comprobaci&oacute;n usa el claim <code>roles</code> del access token de Pedidos360-API y es un control de experiencia de usuario; la seguridad real debe volver a aplicarse en API Gateway y el backend.

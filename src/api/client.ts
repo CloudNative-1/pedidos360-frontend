@@ -5,7 +5,7 @@
 // hermanos (p.ej. src/api/xxxx.ts) usando este cliente.
 
 import type { IPublicClientApplication, AccountInfo } from '@azure/msal-browser';
-import { BrowserAuthError, InteractionRequiredAuthError } from '@azure/msal-browser';
+import { InteractionRequiredAuthError } from '@azure/msal-browser';
 import { apiConfig, apiRequest } from '../auth/authConfig';
 
 export class ApiError extends Error {
@@ -39,6 +39,8 @@ export function apiErrorMessage(error: unknown): string {
     if (error.status === 401) return 'La sesión no pudo autorizar esta solicitud. Inicia sesión nuevamente.';
     if (error.status === 403) return 'Tu cuenta no tiene permiso para realizar esta acción.';
     if (error.status === 404) return 'No se encontró la información solicitada.';
+    if (error.status === 400) return 'La solicitud contiene datos inválidos. Revisa la información e inténtalo nuevamente.';
+    if (error.status === 409) return 'La operación entra en conflicto con el estado o las reglas del negocio.';
     if (error.status >= 500) return 'El servicio presenta un problema temporal. Inténtalo más tarde.';
     return 'No se pudo completar la solicitud.';
   }
@@ -70,13 +72,7 @@ export async function acquireApiToken(
     const result = await instance.acquireTokenSilent({ ...apiRequest, account });
     return result.accessToken;
   } catch (error) {
-    const needsInteraction =
-      error instanceof InteractionRequiredAuthError ||
-      (error instanceof BrowserAuthError &&
-        ['timed_out', 'monitor_window_timeout', 'no_token_request_cache_error'].includes(
-          error.errorCode,
-        ));
-    if (needsInteraction) {
+    if (error instanceof InteractionRequiredAuthError) {
       // No vuelve: la página navega a Entra y regresa al redirectUri.
       await instance.acquireTokenRedirect({ ...apiRequest, account });
     }

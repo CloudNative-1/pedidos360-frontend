@@ -9,7 +9,7 @@
   export interface Producto {
     id: string | number;
     nombre: string;
-    descripcion?: string;
+    descripcion: string;
     precio: number;
     stock: number;
   }

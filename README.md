@@ -46,11 +46,11 @@ Registra dos aplicaciones en el tenant:
 
 Los scopes existentes son exactamente `catalog.read`, `catalog.write`, `orders.read` y `orders.write`. En `VITE_API_SCOPE` se solicitan con el prefijo `api://<client-id-de-Pedidos360-API>/`.
 
-Los App Roles existentes son exactamente `Admin`, `Operador`, `Cliente` y `Auditor`. Asigna estos roles a los usuarios/grupos en la aplicación empresarial de Pedidos360-API.
+Los App Roles existentes son exactamente `Admin`, `Operador` y `Cliente`. Asigna estos roles a los usuarios/grupos en la aplicación empresarial de Pedidos360-API.
 
 ## Inicio de sesión y autorización
 
-La ruta `/` es pública. Al elegir **Iniciar sesión con Microsoft**, MSAL usa la autoridad del tenant y el redirect configurado. Las rutas `/dashboard`, `/catalogo` y `/pedidos` requieren autenticación. `/catalogo` admite `Admin` y `Operador`; `/pedidos` admite `Admin`, `Operador` y `Cliente`. `Auditor` no tiene acceso a esas dos rutas.
+La ruta `/` es pública. Al elegir **Iniciar sesión con Microsoft**, MSAL usa la autoridad del tenant y el redirect configurado. Las rutas `/dashboard`, `/catalogo` y `/pedidos` requieren autenticación. `/catalogo` admite `Admin` y `Operador`; `/pedidos` admite `Admin`, `Operador` y `Cliente`.
 
 Autenticación confirma que existe una sesión. Autorización determina qué puede consultar o intentar hacer esa cuenta. `RequireRole` consulta `roles` del access token de Pedidos360-API; el hook de autorización también lee `scp` del mismo token para ajustar la experiencia. Los roles y scopes no son equivalentes.
 

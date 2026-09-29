@@ -95,7 +95,10 @@ export function Pedidos() {
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!api || !productoId.trim() || cantidad < 1) return;
+    if (!api || !productoId.trim() || !Number.isInteger(cantidad) || cantidad < 1) {
+      setFormError('Indica un producto y una cantidad entera mayor que cero.');
+      return;
+    }
 
     setCreating(true);
     setFormError(null);
@@ -116,12 +119,14 @@ export function Pedidos() {
   }
 
   async function handleTransition(pedido: Pedido, estado: EstadoPedido) {
-    if (!api) return;
+    if (!api || pendingId !== null || creating) return;
     setPendingId(pedido.id);
     setActionError(null);
+    setNotice(null);
     try {
       const updated = await actualizarEstadoPedido(api, pedido.id, estado);
       setPedidos((current) => current.map((item) => item.id === updated.id ? updated : item));
+      setNotice(`Pedido #${pedido.id}: ${formatearEstado(estado)}.`);
     } catch (err) {
       setActionError(apiErrorMessage(err));
     } finally {
@@ -150,6 +155,8 @@ export function Pedidos() {
           {loading ? 'Actualizando...' : 'Actualizar pedidos'}
         </button>
       </div>
+
+      {notice && <p className="form-success" role="status">{notice}</p>}
 
       {backendPendiente && (
         <div className="state-panel state-info" role="status">
@@ -186,12 +193,11 @@ export function Pedidos() {
                   Cantidad
                   <input type="number" min="1" step="1" value={cantidad} onChange={(event) => setCantidad(Number(event.target.value))} required />
                 </label>
-                <button className="btn btn-primary" type="submit" disabled={creating || !productoId.trim()}>
+                <button className="btn btn-primary" type="submit" disabled={creating || pendingId !== null || !productoId.trim()}>
                   {creating ? 'Enviando...' : 'Enviar pedido'}
                 </button>
               </form>
               {formError && <p className="form-error" role="alert">{formError}</p>}
-              {notice && <p className="form-success" role="status">{notice}</p>}
             </section>
           )}
 
@@ -267,7 +273,7 @@ export function Pedidos() {
                   </p>
                 )}
 
-                {pedido.productos && (
+                {pedido.productos.length > 0 && (
                   <ul className="order-products">
                     {pedido.productos.map((producto, index) => (
                       <li key={`${producto.productoId}-${index}`}>
@@ -277,12 +283,9 @@ export function Pedidos() {
                   </ul>
                 )}
 
-                {pedido.total !==
-                  undefined && (
-                  <p className="order-total">
-                    Total: {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(pedido.total)}
-                  </p>
-                )}
+                <p className="order-total">
+                  Total: {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(pedido.total)}
+                </p>
 
                 {puedeCambiarEstado && transicionesPermitidas(pedido.estado).length > 0 && (
                   <div className="order-actions" aria-label={`Acciones para el pedido ${pedido.id}`}>
@@ -292,9 +295,9 @@ export function Pedidos() {
                         className={estado === 'CANCELADO' ? 'btn btn-quiet' : 'btn btn-secondary'}
                         key={estado}
                         onClick={() => void handleTransition(pedido, estado)}
-                        disabled={pendingId === pedido.id}
+                        disabled={pendingId !== null || creating}
                       >
-                        {pendingId === pedido.id ? 'Guardando...' : `Cambiar a ${formatearEstado(estado)}`}
+                        {pendingId === pedido.id ? 'Guardando...' : etiquetaAccion(estado)}
                       </button>
                     ))}
                   </div>
@@ -358,4 +361,21 @@ function formatearFecha(value: string): string {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(date);
+}
+
+function etiquetaAccion(estado: EstadoPedido): string {
+  switch (estado) {
+    case 'ACEPTADO':
+      return 'Aceptar';
+    case 'CANCELADO':
+      return 'Cancelar';
+    case 'EN_PREPARACION':
+      return 'En preparación';
+    case 'DESPACHADO':
+      return 'Despachar';
+    case 'ENTREGADO':
+      return 'Entregar';
+    case 'CREADO':
+      return 'Creado';
+  }
 }

@@ -17,18 +17,13 @@ export type EstadoPedido =
 
 export interface Pedido {
   id: string | number;
-
-  clienteId?: string;
-  clienteNombre?: string;
-
+  clienteId: string;
+  clienteNombre: string;
   estado: EstadoPedido;
-
-  fechaCreacion?: string;
-  fechaActualizacion?: string;
-
-  total?: number;
-
-  productos?: ProductoPedido[];
+  fechaCreacion: string;
+  fechaActualizacion: string;
+  total: number;
+  productos: ProductoPedido[];
 }
 
 export interface ProductoPedido {
