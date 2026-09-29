@@ -24,6 +24,7 @@ import { RequireAuth } from './auth/RequireAuth';
 import { RequireRole } from './auth/RequireRole';
 import { AppShell } from './components/layout/AppShell';
 import { Landing } from './pages/Landing';
+import { CatalogoDemo } from './pages/CatalogoDemo';
 import { Dashboard } from './pages/Dashboard';
 import { Catalogo } from './pages/Catalogo';
 import { Pedidos } from './pages/Pedidos';
@@ -46,6 +47,7 @@ export default function App() {
       <ScrollToTop />
       <Routes>
         <Route path="/" element={<Landing />} />
+        <Route path="/catalogo-demo" element={<CatalogoDemo />} />
         <Route element={<RequireAuth />}>
           <Route element={<AppShell />}>
             <Route path="/dashboard" element={<Dashboard />} />

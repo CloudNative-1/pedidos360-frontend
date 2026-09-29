@@ -1,6 +1,7 @@
 import { Boxes, ClipboardList, Home, UserRound } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 import { SidebarUser } from './SidebarUser';
+import brandMark from '../../imagenes/animales/Imagen de ChatGPT 29 sept 2026, 13_03_20.png';
 
 interface SidebarProps {
   userName: string;
@@ -33,7 +34,7 @@ export function Sidebar({
   return (
     <aside className={`sidebar${open ? ' is-open' : ''}`} id="primary-sidebar" aria-label="Navegación principal">
       <div className="sidebar-brand">
-        <span className="brand-mark" aria-hidden="true">P</span>
+        <img className="brand-mark-img" src={brandMark} alt="" />
         <span className="brand-copy">
           <strong>Pedidos360</strong>
           <small>Sistema de pedidos</small>
