@@ -23,7 +23,10 @@ const msalInstance = new PublicClientApplication(msalConfig);
 msalInstance.addEventCallback((event: EventMessage) => {
   if (event.eventType === EventType.LOGIN_SUCCESS && event.payload) {
     const payload = event.payload as AuthenticationResult;
-    if (payload.account?.tenantId === import.meta.env.VITE_AZURE_TENANT_ID) {
+    // La cuenta que acaba de completar el login ES la cuenta activa:
+    // no filtrar por tenant aquí para no descartar invitados/otras cuentas
+    // y volver al usuario anterior después de "Cambiar cuenta".
+    if (payload.account) {
       msalInstance.setActiveAccount(payload.account);
     }
   }

@@ -48,6 +48,9 @@ export function Landing() {
   const handleLogin = () => {
     if (inProgress === InteractionStatus.None) {
       setError(null);
+      // Limpiar la cuenta activa antes del selector (caso "Cambiar cuenta"):
+      // la identidad la define la cuenta elegida en este login.
+      instance.setActiveAccount(null);
       instance.loginRedirect(accountRequest).catch(() => {
         setError('No se pudo iniciar sesión. Inténtalo nuevamente.');
       });

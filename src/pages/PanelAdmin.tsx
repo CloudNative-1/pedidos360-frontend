@@ -38,8 +38,6 @@ export function PanelAdmin() {
 
   const cargar = useCallback(async () => {
     if (!api || authorization.loading) return;
-    setLoading(true);
-    setError(null);
     try {
       const [productos, pedidos] = await Promise.all([listarCatalogo(api), listarPedidos(api)]);
       setStats({
@@ -56,8 +54,37 @@ export function PanelAdmin() {
   }, [api, authorization.loading]);
 
   useEffect(() => {
+    if (!api || authorization.loading) return;
+    let active = true;
+
+    void Promise.all([listarCatalogo(api), listarPedidos(api)])
+      .then(([productos, pedidos]) => {
+        if (active) {
+          setStats({
+            productos: productos.length,
+            agotados: productos.filter((producto) => producto.stock === 0).length,
+            pedidos: pedidos.length,
+            pendientes: pedidos.filter((pedido) => pedido.estado === 'CREADO').length,
+          });
+        }
+      })
+      .catch((reason) => {
+        if (active) setError(apiErrorMessage(reason));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [api, authorization.loading]);
+
+  const reintentar = () => {
+    setLoading(true);
+    setError(null);
     void cargar();
-  }, [cargar]);
+  };
 
   return (
     <section className="page-stack dashboard-page">
@@ -104,7 +131,7 @@ export function PanelAdmin() {
           <div><p className="page-eyebrow">INDICADORES</p><h2 id="admin-stats-heading">Estado del negocio</h2></div>
         </div>
         {error ? (
-          <ErrorState message={error} onRetry={() => void cargar()} />
+          <ErrorState message={error} onRetry={reintentar} />
         ) : loading || stats === null ? (
           <LoadingState message="Consultando catálogo y pedidos…" />
         ) : (

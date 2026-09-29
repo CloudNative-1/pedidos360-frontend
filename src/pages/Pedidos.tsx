@@ -227,7 +227,12 @@ export function Pedidos() {
 
       {!error && !backendPendiente && !authorization.loading && canRead &&
         !loading &&
-        pedidos.length === 0 && <EmptyState title="No hay pedidos disponibles" description="Los pedidos asociados a tu cuenta aparecerán aquí." />}
+        pedidos.length === 0 && (
+          <EmptyState
+            title={esCliente ? 'Aún no has realizado pedidos.' : 'No hay pedidos registrados todavía.'}
+            description={esCliente ? 'Cuando realices una compra desde Comprar, la verás aquí.' : 'Los pedidos creados por los clientes aparecerán aquí.'}
+          />
+        )}
 
       {!error && !backendPendiente && !authorization.loading && canRead &&
         !loading &&

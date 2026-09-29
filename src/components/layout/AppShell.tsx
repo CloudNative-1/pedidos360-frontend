@@ -44,6 +44,9 @@ export function AppShell() {
 
   function changeAccount() {
     if (inProgress === InteractionStatus.None) {
+      // Olvidar la cuenta activa ANTES de pedir una nueva: así el selector
+      // de Microsoft define la identidad y el LOGIN_SUCCESS marca la elegida.
+      instance.setActiveAccount(null);
       void instance.loginRedirect({ ...loginRequest, prompt: 'select_account' }).catch(() => {
         console.error('No se pudo abrir el selector de cuentas de Microsoft.');
       });

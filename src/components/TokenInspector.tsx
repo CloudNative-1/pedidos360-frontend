@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { useMsal } from '@azure/msal-react';
 
 import { acquireApiToken, apiErrorMessage } from '../api/client';
+import { resolveActiveAccount } from '../auth/activeAccount';
 
 import {
   decodeJwt,
@@ -31,9 +32,7 @@ export function TokenInspector() {
 
   const handleInspect = async () => {
     const account =
-      instance.getActiveAccount() ??
-      accounts[0] ??
-      null;
+      resolveActiveAccount(instance, accounts);
 
     if (!account) {
       setError(
