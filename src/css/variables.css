@@ -1,34 +1,49 @@
 :root {
   font-family: "Aptos", "Segoe UI", sans-serif;
-  color: #17263d;
-  background: #f2f5fa;
+  color: #f3ecfa;
+  background: #0c0a13;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   font-weight: 400;
-  --sidebar-bg: #0c1d38;
-  --sidebar-deep: #09172d;
-  --sidebar-text: #cad4e5;
-  --sidebar-muted: #8292ac;
-  --primary: #2868e8;
-  --primary-hover: #1d55c5;
-  --primary-soft: #e9f0ff;
-  --surface: #ffffff;
-  --background: #f2f5fa;
-  --text-primary: #17263d;
-  --text-secondary: #68778f;
-  --border: #e2e8f0;
-  --success: #18845d;
-  --success-bg: #e6f5ee;
-  --warning: #9a6a09;
-  --warning-bg: #fff4d8;
-  --danger: #c64c55;
-  --danger-bg: #fcebed;
-  --info: #3574b9;
-  --info-bg: #e8f2fc;
-  --violet: #6659b5;
+
+  /* Acento morado (elemento exclusivo Halloween) */
+  --gold: #a040f0;
+  --gold-light: #e2c8ff;
+  --gold-bright: #c68aff;
+  --gold-deep: #400080;
+  --gold-soft: rgba(160, 64, 240, .18);
+
+  --sidebar-bg: #131020;
+  --sidebar-deep: #0d0a16;
+  --sidebar-text: #e6dcf5;
+  --sidebar-muted: #8f7fb0;
+
+  --primary: #e2720a;
+  --primary-hover: #c25a08;
+  --primary-soft: rgba(226, 114, 10, .18);
+  --primary-gradient: linear-gradient(135deg, #ff9030, #c25408);
+
+  --surface: #1a1524;
+  --surface-alt: #241c30;
+  --background: #0c0a13;
+  --text-primary: #f3ecfa;
+  --text-secondary: #b7a8cf;
+  --border: #382a4d;
+  --border-strong: #543a75;
+
+  --success: #6fbd8f;
+  --success-bg: rgba(63, 145, 98, .18);
+  --warning: #d99f3a;
+  --warning-bg: rgba(217, 159, 58, .16);
+  --danger: #e28181;
+  --danger-bg: rgba(199, 77, 90, .16);
+  --info: #9db9e8;
+  --info-bg: rgba(53, 116, 185, .2);
+  --violet: #a597e0;
+
   --radius: 8px;
-  --shadow-card: 0 3px 14px rgba(18, 37, 67, 0.045);
-  --shadow-float: 0 20px 60px rgba(7, 23, 49, 0.19);
+  --shadow-card: 0 4px 18px rgba(0, 0, 0, .4);
+  --shadow-float: 0 24px 60px rgba(0, 0, 0, .6);
 }
