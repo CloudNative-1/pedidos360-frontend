@@ -7,21 +7,22 @@
 
 @media (max-width: 760px) {
   .sidebar { z-index: 40; width: min(290px, calc(100vw - 48px)); transform: translateX(-102%); transition: transform .2s ease; box-shadow: none; }
-  .sidebar.is-open { transform: translateX(0); box-shadow: 12px 0 38px rgba(4,17,39,.25); }
-  .sidebar-scrim { position: fixed; z-index: 30; inset: 0; display: block; border: 0; background: rgba(8,20,41,.45); }
+  .sidebar.is-open { transform: translateX(0); box-shadow: 12px 0 38px rgba(0, 0, 0, .5); }
+  .sidebar-scrim { position: fixed; z-index: 30; inset: 0; display: block; border: 0; background: rgba(8, 5, 2, .6); }
   .app-main { margin-left: 0; }
-  .mobile-header { position: sticky; z-index: 10; top: 0; display: flex; min-height: 58px; align-items: center; gap: 12px; padding: 0 17px; border-bottom: 1px solid var(--border); background: rgba(255,255,255,.96); backdrop-filter: blur(12px); color: var(--text-primary); font-size: 13px; font-weight: 800; }
+  .mobile-header { position: sticky; z-index: 10; top: 0; display: flex; min-height: 58px; align-items: center; gap: 12px; padding: 0 17px; border-bottom: 1px solid var(--border); background: rgba(26, 21, 36, .96); backdrop-filter: blur(12px); color: var(--text-primary); font-size: 13px; font-weight: 800; }
   .mobile-route-title { margin-left: auto; color: var(--text-secondary); font-size: 11px; font-weight: 600; }
   .menu-toggle { width: 35px; height: 35px; }
   .page-content { min-height: calc(100vh - 58px); padding: 26px 20px 45px; }
   .welcome-screen { padding: 22px 24px 18px; }
-  .welcome-screen::before { inset: 42% 0 0 0; opacity: .4; }
-  .welcome-screen::after { background: linear-gradient(180deg, #0c1d38 0%, #0c1d38 40%, rgba(12,29,56,.62) 100%); }
+  .welcome-screen::before { inset: 38% 0 0 0; opacity: .55; }
+  .welcome-screen::after { background: linear-gradient(180deg, #0e0b16 0%, #0e0b16 40%, rgba(14, 11, 22, .65) 100%); }
   .welcome-layout { grid-template-columns: 1fr; gap: 0; padding: 54px 0 20px; }
   .welcome-copy { position: relative; z-index: 2; }
   .welcome-copy h1 { font-size: 49px; }
   .welcome-art { min-height: 250px; margin-top: 0; transform: scale(.82); }
   .welcome-art-chip { right: 1%; bottom: 7%; }
+  .welcome-scene-side { width: 92px; }
 }
 
 @media (max-width: 540px) {
