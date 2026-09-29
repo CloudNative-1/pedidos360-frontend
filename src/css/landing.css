@@ -39,5 +39,7 @@
 .welcome-art-chip, .welcome-art-shield { position: absolute; z-index: 3; display: flex; align-items: center; gap: 9px; border: 1px solid rgba(160, 64, 240, .4); border-radius: 7px; background: rgba(26, 21, 36, .88); color: #e2c8ff; box-shadow: 0 13px 32px rgba(0, 0, 0, .35); backdrop-filter: blur(8px); }
 .welcome-art-chip { right: 1%; bottom: 14%; padding: 11px 14px; font-size: 11px; }
 .welcome-art-shield { top: 12%; left: 3%; display: grid; width: 42px; height: 42px; place-items: center; color: var(--gold); }
-.welcome-footer { color: #8f7fb0; font-size: 11px; }
+.welcome-footer { display: flex; align-items: center; justify-content: space-between; gap: 18px; color: var(--sidebar-muted); font-size: 11px; }
+.welcome-demo-link { color: var(--gold); font-weight: 750; text-decoration: none; transition: color .16s ease; }
+.welcome-demo-link:hover { color: var(--gold-light); text-decoration: underline; }
 .welcome-screen .inline-error { margin-top: 12px; }
