@@ -69,7 +69,10 @@ export function Landing() {
           </div>
           <WelcomeArt />
         </section>
-        <footer className="welcome-footer">Acceso seguro con Microsoft Entra ID</footer>
+        <footer className="welcome-footer">
+          <span>Acceso seguro con Microsoft Entra ID</span>
+          <Link className="welcome-demo-link" to="/catalogo-demo">Ver mini catálogo →</Link>
+        </footer>
       </main>
     );
   }
@@ -103,7 +106,10 @@ export function Landing() {
         </div>
         <WelcomeArt />
       </section>
-      <footer className="welcome-footer">Acceso seguro con Microsoft Entra ID</footer>
+      <footer className="welcome-footer">
+          <span>Acceso seguro con Microsoft Entra ID</span>
+          <Link className="welcome-demo-link" to="/catalogo-demo">Ver mini catálogo →</Link>
+        </footer>
     </main>
   );
 }
