@@ -1,6 +1,7 @@
 // src/pages/Landing.tsx
 // Página PÚBLICA (no está detrás de RequireAuth). Solo ofrece login/logout;
-// el contenido protegido vive en /dashboard, detrás del guard.
+// el contenido protegido vive detrás del guard y /inicio resuelve el panel
+// según el rol.
 import { useState } from 'react';
 import { ArrowRight, Boxes, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -62,7 +63,7 @@ export function Landing() {
             <p className="welcome-kicker">SISTEMA DE PEDIDOS</p>
             <h1>Tu operación,<br /><span>en movimiento.</span></h1>
             <p className="welcome-description">Catálogo y pedidos, organizados en un mismo lugar para que cada etapa avance con claridad.</p>
-            <Link className="welcome-button" to="/dashboard">Continuar al panel<ArrowRight size={17} /></Link>
+            <Link className="welcome-button" to="/inicio">Continuar al panel<ArrowRight size={17} /></Link>
             <button className="welcome-secondary-button" onClick={handleLogin} disabled={inProgress !== InteractionStatus.None}>
               Cambiar cuenta
             </button>

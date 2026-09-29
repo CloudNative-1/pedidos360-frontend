@@ -1,6 +1,7 @@
 @media (max-width: 1050px) {
   .page-content { padding-right: 30px; padding-left: 30px; }
   .shortcut-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .welcome-layout { gap: 24px; }
   .welcome-art { transform: scale(.9); }
 }
@@ -33,6 +34,14 @@
   .page-header-actions { width: 100%; justify-content: flex-start; }
   .page-header-actions > * { flex: 1 1 auto; }
   .shortcut-grid { grid-template-columns: 1fr; }
+  .stat-grid { grid-template-columns: 1fr; }
+  .carrito-linea { grid-template-columns: 48px minmax(0, 1fr) 32px; row-gap: 2px; }
+  .carrito-info { grid-column: 2; }
+  .stepper { grid-column: 3; grid-row: 1; justify-self: end; }
+  .carrito-subtotal { grid-column: 2; grid-row: 2; min-width: 0; text-align: left; }
+  .carrito-remove { grid-column: 3; grid-row: 1 / span 2; align-self: center; }
+  .carrito-footer { align-items: stretch; flex-direction: column; }
+  .carrito-footer .primary-button { width: 100%; }
   .dashboard-welcome { align-items: flex-start; flex-direction: column; gap: 14px; padding: 17px; }
   .role-list { justify-content: flex-start; }
   .product-grid, .orders-list { grid-template-columns: 1fr; }

@@ -9,6 +9,11 @@
 // - Comprueba que el usuario tenga al menos uno de los roles
 //   permitidos para acceder a una ruta.
 //
+// Inicio por rol:
+// - /inicio resuelve el panel correspondiente según el rol:
+//   Admin → /admin · Operador → /operador · Cliente → /cliente.
+// - El Cliente compra en /comprar y NO tiene acceso a /catalogo.
+//
 // Las rutas utilizan nombres en español para mantener
 // consistencia dentro del proyecto.
 
@@ -25,7 +30,11 @@ import { RequireRole } from './auth/RequireRole';
 import { AppShell } from './components/layout/AppShell';
 import { Landing } from './pages/Landing';
 import { CatalogoDemo } from './pages/CatalogoDemo';
-import { Dashboard } from './pages/Dashboard';
+import { Inicio } from './pages/Inicio';
+import { PanelAdmin } from './pages/PanelAdmin';
+import { PanelOperador } from './pages/PanelOperador';
+import { InicioCliente } from './pages/InicioCliente';
+import { Comprar } from './pages/Comprar';
 import { Catalogo } from './pages/Catalogo';
 import { Pedidos } from './pages/Pedidos';
 import { Perfil } from './pages/Perfil';
@@ -50,8 +59,19 @@ export default function App() {
         <Route path="/catalogo-demo" element={<CatalogoDemo />} />
         <Route element={<RequireAuth />}>
           <Route element={<AppShell />}>
-            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/inicio" element={<Inicio />} />
+            <Route path="/dashboard" element={<Navigate to="/inicio" replace />} />
             <Route path="/perfil" element={<Perfil />} />
+            <Route element={<RequireRole roles={['Admin']} />}>
+              <Route path="/admin" element={<PanelAdmin />} />
+            </Route>
+            <Route element={<RequireRole roles={['Operador']} />}>
+              <Route path="/operador" element={<PanelOperador />} />
+            </Route>
+            <Route element={<RequireRole roles={['Cliente']} />}>
+              <Route path="/cliente" element={<InicioCliente />} />
+              <Route path="/comprar" element={<Comprar />} />
+            </Route>
             <Route element={<RequireRole roles={['Admin', 'Operador']} />}>
               <Route path="/catalogo" element={<Catalogo />} />
             </Route>

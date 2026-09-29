@@ -16,6 +16,7 @@
 .state-panel p { margin: 0; }
 .state-info { border-color: rgba(217, 159, 58, .35); background: rgba(217, 159, 58, .1); color: #e6c067; }
 .state-error { border-color: rgba(226, 129, 129, .35); background: rgba(199, 77, 90, .1); color: var(--danger); }
+.state-success { border-color: rgba(111, 189, 143, .35); background: rgba(63, 145, 98, .12); color: var(--success); }
 .security-note { color: var(--text-secondary); font-size: 11px; }
 .form-success { color: var(--success); font-size: 12px; font-weight: 700; }
 .error-message { color: var(--danger); font-size: 12px; }

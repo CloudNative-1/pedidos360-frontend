@@ -7,9 +7,14 @@ import { useAuthorization } from '../useAuthorization';
 import { Sidebar } from './Sidebar';
 import { resolveActiveAccount } from '../../auth/activeAccount';
 import { loginRequest } from '../../auth/authConfig';
+import { rutaInicioPorRol } from '../../utils/rolInicio';
 
 const routeTitles: Record<string, string> = {
-  '/dashboard': 'Inicio',
+  '/inicio': 'Inicio',
+  '/admin': 'Panel de Administración',
+  '/operador': 'Panel de Operaciones',
+  '/cliente': 'Inicio',
+  '/comprar': 'Comprar',
   '/catalogo': 'Catálogo',
   '/pedidos': 'Pedidos',
   '/perfil': 'Mi perfil',
@@ -24,6 +29,7 @@ export function AppShell() {
   const userName = account?.name ?? account?.username ?? 'Cuenta Microsoft';
   const canSeeCatalog = authorization.roles.some((role) => role === 'Admin' || role === 'Operador');
   const canSeeOrders = authorization.roles.some((role) => ['Admin', 'Operador', 'Cliente'].includes(role));
+  const homePath = rutaInicioPorRol(authorization.roles);
 
   function logout() {
     if (inProgress === InteractionStatus.None) {
@@ -50,6 +56,7 @@ export function AppShell() {
         userName={userName}
         username={account?.username ?? ''}
         roles={authorization.roles}
+        homePath={homePath}
         canSeeCatalog={canSeeCatalog}
         canSeeOrders={canSeeOrders}
         open={menuOpen}

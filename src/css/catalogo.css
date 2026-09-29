@@ -24,3 +24,25 @@
 .catalogo-demo-header p { margin: 0; color: var(--text-secondary); }
 .product-media { display: grid; min-height: 190px; place-items: center; padding: 14px; border: 1px solid var(--border); border-radius: var(--radius); background: radial-gradient(120% 120% at 50% 0%, var(--surface-alt), var(--surface)); }
 .product-media img { max-width: 100%; max-height: 170px; object-fit: contain; filter: drop-shadow(0 10px 14px rgba(0, 0, 0, .45)); }
+
+/* Vista Comprar (Cliente) */
+.comprar-card .product-media { min-height: 150px; }
+.comprar-card .product-media img { max-height: 130px; }
+.carrito-panel { display: grid; gap: 16px; }
+.carrito-lineas { display: grid; gap: 4px; }
+.carrito-linea { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto auto 36px; gap: 12px; align-items: center; padding: 11px 0; border-top: 1px solid var(--border); }
+.carrito-linea:first-child { border-top: 0; }
+.carrito-thumb { width: 56px; height: 56px; padding: 6px; object-fit: contain; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-alt); }
+.carrito-info { min-width: 0; }
+.carrito-info strong { display: block; overflow-wrap: anywhere; font-size: 13px; }
+.carrito-info small { color: var(--text-secondary); font-size: 11px; }
+.stepper { display: inline-flex; align-items: center; gap: 2px; }
+.stepper button { display: grid; width: 30px; height: 30px; place-items: center; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text-primary); cursor: pointer; transition: border-color .16s ease, color .16s ease; }
+.stepper button:hover:not(:disabled) { border-color: var(--gold); color: var(--gold-light); }
+.stepper button:disabled { opacity: .45; cursor: not-allowed; }
+.stepper span { min-width: 36px; text-align: center; font-size: 13px; font-weight: 750; }
+.carrito-subtotal { min-width: 86px; text-align: right; font-size: 13px; font-weight: 800; }
+.carrito-remove { width: 34px; height: 34px; flex: 0 0 34px; }
+.carrito-footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding-top: 15px; border-top: 1px solid var(--border); }
+.carrito-total { margin: 0; color: var(--text-secondary); font-size: 13px; }
+.carrito-total strong { margin-left: 8px; color: var(--gold); font-size: 20px; }

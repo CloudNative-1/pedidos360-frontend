@@ -95,9 +95,8 @@ export function Pedidos() {
   };
 
   const roles = authorization.roles;
-  const puedeCrear =
-    (roles.includes('Cliente') || roles.includes('Operador')) &&
-    authorization.hasScope('orders.write');
+  const esCliente = roles.includes('Cliente');
+  const puedeCrear = roles.includes('Operador') && authorization.hasScope('orders.write');
   const puedeCambiarEstado =
     (roles.includes('Admin') || roles.includes('Operador')) &&
     authorization.hasScope('orders.write');
@@ -124,12 +123,6 @@ export function Pedidos() {
       active = false;
     };
   }, [api, canReadCatalog, puedeCrear]);
-
-  useEffect(() => {
-    if (window.location.hash === '#nuevo-pedido') {
-      document.getElementById('nuevo-pedido')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  }, []);
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -177,9 +170,9 @@ export function Pedidos() {
   return (
     <section className="page-stack">
       <PageHeader
-        eyebrow="Operación"
-        title="Pedidos"
-        subtitle="Consulta, crea y da seguimiento a los pedidos."
+        eyebrow={esCliente ? 'Cuenta' : 'Operación'}
+        title={esCliente ? 'Mis pedidos' : 'Pedidos'}
+        subtitle={esCliente ? 'Consulta el estado de tus pedidos.' : 'Consulta, crea y da seguimiento a los pedidos.'}
         actions={<button className="secondary-button" onClick={actualizar} disabled={loading || authorization.loading || !api || !canRead}>
           <RefreshCw size={16} />Actualizar
         </button>}

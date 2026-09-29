@@ -15,3 +15,10 @@
 .shortcut-copy strong { color: var(--text-primary); font-size: 13px; }
 .shortcut-copy small { color: var(--text-secondary); font-size: 11px; }
 .shortcut-arrow { margin-left: auto; flex: 0 0 auto; color: var(--sidebar-muted); }
+
+/* Indicadores del Panel de Administración (contadores reales de la API) */
+.stat-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.stat-card { display: flex; align-items: center; gap: 12px; padding: 18px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow-card); }
+.stat-card small { display: block; color: var(--text-secondary); font-size: 11px; }
+.stat-card strong { color: var(--text-primary); font-size: 24px; font-weight: 800; }
+.stat-icon { display: grid; width: 40px; height: 40px; flex: 0 0 40px; place-items: center; border-radius: 8px; background: var(--primary-soft); color: var(--primary); }
