@@ -5,9 +5,11 @@
 
 import { useMsal } from '@azure/msal-react';
 import { Link } from 'react-router-dom';
+import { ArrowUpRight, Boxes, ClipboardList, Plus, UserRound } from 'lucide-react';
 
 import { TokenInspector } from '../components/TokenInspector';
 import { useAuthorization } from '../components/useAuthorization';
+import { PageHeader } from '../components/layout/PageHeader';
 
 export function Dashboard() {
   const { instance, accounts } = useMsal();
@@ -18,68 +20,52 @@ export function Dashboard() {
     accounts[0] ??
     null;
 
-  const initial = currentUser?.name?.trim().charAt(0).toUpperCase() || 'P';
+  const isAdmin = authorization.roles.includes('Admin');
+  const isOperator = authorization.roles.includes('Operador');
+  const isClient = authorization.roles.includes('Cliente');
+
+  const shortcuts = [
+    ...(isAdmin || isOperator ? [{ to: '/catalogo', title: 'Catálogo', description: 'Productos y disponibilidad', icon: Boxes }] : []),
+    ...(isAdmin || isOperator || isClient ? [{ to: '/pedidos', title: isClient ? 'Mis pedidos' : 'Pedidos', description: 'Consulta y seguimiento', icon: ClipboardList }] : []),
+    ...(isClient ? [{ to: '/pedidos#nuevo-pedido', title: 'Crear pedido', description: 'Registrar una nueva solicitud', icon: Plus }] : []),
+  ];
 
   return (
-    <section className="dashboard">
-      <header className="dashboard-header">
-        <div className="avatar">
-          {initial}
-        </div>
-
-        <div>
-          <p className="eyebrow">Inicio</p>
-          <h1>Hola, {currentUser?.name ?? 'bienvenido'}.</h1>
-
-          <p className="subtitle">
-            Sesión iniciada mediante Microsoft Entra ID.
-          </p>
-        </div>
-      </header>
-
-      <div className="dashboard-grid">
-        <section className="surface">
-          <h2>Tu cuenta</h2>
-
-          <div className="user-details">
-            <div className="detail-item">
-              <span>Nombre</span>
-
-              <strong>
-                {currentUser?.name ?? 'No disponible'}
-              </strong>
-            </div>
-            <div className="detail-item">
-              <span>Correo o usuario</span>
-              <strong>{currentUser?.username ?? 'No disponible'}</strong>
-            </div>
+    <section className="page-stack dashboard-page">
+      <PageHeader
+        eyebrow={isAdmin ? 'Administración' : isOperator ? 'Operación' : 'Cuenta de cliente'}
+        title={`Hola, ${currentUser?.name?.split(' ')[0] ?? 'bienvenido'}`}
+        subtitle="¿Qué necesitas gestionar hoy?"
+      />
+      <section className="dashboard-welcome surface">
+        <div className="dashboard-welcome-copy">
+          <span className="dashboard-icon"><UserRound size={21} /></span>
+          <div>
+            <p className="card-overline">Sesión activa</p>
+            <h2>{currentUser?.name ?? 'Cuenta Microsoft'}</h2>
+            <p className="muted-copy">{currentUser?.username ?? 'Usuario autenticado mediante Microsoft Entra ID'}</p>
           </div>
-        </section>
+        </div>
+        <div className="role-list" aria-label="Roles asignados">
+          {authorization.loading ? <span className="role-chip">Cargando rol…</span> :
+            authorization.roles.map((role) => <span className="role-chip" key={role}>{role}</span>)}
+        </div>
+      </section>
 
-        <section className="surface">
-          <h2>Áreas de trabajo</h2>
-
-          <p className="subtitle">
-            Consulta las secciones disponibles para tu cuenta.
-          </p>
-
-          <div className="dashboard-summary">
-            {authorization.roles.some((role) => role === 'Admin' || role === 'Operador') && (
-              <Link to="/catalogo" className="summary-link">
-                <strong>Catálogo</strong>
-                <span>Productos y disponibilidad</span>
-              </Link>
-            )}
-
-            {authorization.roles.some((role) => role === 'Admin' || role === 'Operador' || role === 'Cliente') && (
-              <Link to="/pedidos" className="summary-link">
-                <strong>Pedidos</strong>
-                <span>Consulta y seguimiento</span>
-              </Link>
-            )}
-          </div>
-        </section>
-      </div>
+      <section className="dashboard-shortcuts" aria-labelledby="shortcuts-heading">
+        <div className="section-heading">
+          <div><p className="page-eyebrow">ESPACIOS DE TRABAJO</p><h2 id="shortcuts-heading">Accesos rápidos</h2></div>
+        </div>
+        <div className="shortcut-grid">
+          {shortcuts.map(({ to, title, description, icon: Icon }) => (
+            <Link to={to} className="shortcut-card" key={title}>
+              <span className="shortcut-icon"><Icon size={20} strokeWidth={1.8} /></span>
+              <span className="shortcut-copy"><strong>{title}</strong><small>{description}</small></span>
+              <ArrowUpRight className="shortcut-arrow" size={17} />
+            </Link>
+          ))}
+        </div>
+      </section>
 
       {import.meta.env.DEV && (
         <section className="surface token-surface">

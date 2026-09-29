@@ -82,7 +82,7 @@ export function TokenInspector() {
       </p>
 
       <button
-        className="btn btn-login"
+        className="secondary-button"
         onClick={handleInspect}
         disabled={loading}
       >
@@ -92,7 +92,7 @@ export function TokenInspector() {
       </button>
 
       {error && (
-        <p className="error-message">
+        <p className="inline-error">
           {error}
         </p>
       )}

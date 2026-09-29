@@ -1,7 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useMsal } from '@azure/msal-react';
 import { acquireApiToken } from '../api/client';
 import { decodeJwt, rolesOf, scopesOf } from '../utils/jwt';
+import { resolveActiveAccount } from '../auth/activeAccount';
+
+const EMPTY_AUTHORIZATION = { roles: [] as string[], scopes: [] as string[] };
 
 interface AuthorizationSnapshot {
   accountKey: string;
@@ -12,17 +15,19 @@ interface AuthorizationSnapshot {
 
 export function useAuthorization() {
   const { instance, accounts } = useMsal();
-  const account = instance.getActiveAccount() ?? accounts[0] ?? null;
+  const account = resolveActiveAccount(instance, accounts);
   const accountKey = account?.homeAccountId ?? '';
   const [snapshot, setSnapshot] = useState<AuthorizationSnapshot | null>(null);
   const currentSnapshot = snapshot?.accountKey === accountKey ? snapshot : null;
 
   useEffect(() => {
-    if (!account) return;
+    if (!accountKey) return;
 
     let active = true;
+    const tokenAccount = instance.getAccount({ homeAccountId: accountKey });
+    if (!tokenAccount) return;
 
-    void acquireApiToken(instance, account)
+    void acquireApiToken(instance, tokenAccount)
       .then((token) => {
         const claims = decodeJwt(token);
         if (!claims) throw new Error('Invalid token payload');
@@ -49,19 +54,19 @@ export function useAuthorization() {
     return () => {
       active = false;
     };
-  }, [account, accountKey, instance]);
+  }, [accountKey, instance]);
 
-  return useMemo(() => {
-    const roles = currentSnapshot?.roles ?? [];
-    const scopes = currentSnapshot?.scopes ?? [];
+  const roles = currentSnapshot?.roles ?? EMPTY_AUTHORIZATION.roles;
+  const scopes = currentSnapshot?.scopes ?? EMPTY_AUTHORIZATION.scopes;
+  const hasRole = useCallback((role: string) => roles.includes(role), [roles]);
+  const hasScope = useCallback((scope: string) => scopes.includes(scope), [scopes]);
 
-    return {
-      roles,
-      scopes,
-      loading: Boolean(account && !currentSnapshot),
-      error: currentSnapshot?.error ?? null,
-      hasRole: (role: string) => roles.includes(role),
-      hasScope: (scope: string) => scopes.includes(scope),
-    };
-  }, [account, currentSnapshot]);
+  return {
+    roles,
+    scopes,
+    loading: Boolean(accountKey && !currentSnapshot),
+    error: currentSnapshot?.error ?? null,
+    hasRole,
+    hasScope,
+  };
 }

@@ -7,13 +7,16 @@
 import { useMemo } from 'react';
 import { useMsal } from '@azure/msal-react';
 import { createApiClient, type ApiClient } from '../api/client';
+import { resolveActiveAccount } from '../auth/activeAccount';
 
 export function useApi(): ApiClient | null {
   const { instance, accounts } = useMsal();
-  const account = instance.getActiveAccount() ?? accounts[0] ?? null;
+  const account = resolveActiveAccount(instance, accounts);
+  const accountKey = account?.homeAccountId ?? '';
 
   return useMemo(() => {
-    if (!account) return null;
-    return createApiClient(instance, account);
-  }, [instance, account]);
+    if (!accountKey) return null;
+    const tokenAccount = instance.getAccount({ homeAccountId: accountKey });
+    return tokenAccount ? createApiClient(instance, tokenAccount) : null;
+  }, [instance, accountKey]);
 }

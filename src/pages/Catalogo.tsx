@@ -4,7 +4,7 @@
 // La autorización de acceso se controla desde App.tsx mediante RequireRole.
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
-
+import { Plus, RefreshCw } from 'lucide-react';
 import { useApi } from '../components/useApi';
 import {
   actualizarProducto,
@@ -13,8 +13,15 @@ import {
   listarCatalogo,
   type Producto,
 } from '../api/catalogo';
-import { apiErrorMessage } from '../api/client';
+import { ApiError, apiErrorDetails, apiErrorMessage } from '../api/client';
 import { useAuthorization } from '../components/useAuthorization';
+import { PageHeader } from '../components/layout/PageHeader';
+import { ProductoCard } from '../components/catalogo/ProductoCard';
+import { ProductoForm, type ProductoFormValues } from '../components/catalogo/ProductoForm';
+import { ConfirmDialog } from '../components/common/ConfirmDialog';
+import { EmptyState } from '../components/common/EmptyState';
+import { ErrorState } from '../components/common/ErrorState';
+import { LoadingState } from '../components/common/LoadingState';
 
 export function Catalogo() {
   const api = useApi();
@@ -27,6 +34,7 @@ export function Catalogo() {
   const [productos, setProductos] = useState<Producto[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [errorDetails, setErrorDetails] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [formMode, setFormMode] = useState<'closed' | 'create' | 'edit'>('closed');
@@ -34,17 +42,20 @@ export function Catalogo() {
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | number | null>(null);
-  const [form, setForm] = useState({ nombre: '', descripcion: '', precio: '', stock: '' });
+  const [confirmingDelete, setConfirmingDelete] = useState<Producto | null>(null);
+  const [form, setForm] = useState<ProductoFormValues>({ nombre: '', descripcion: '', precio: '', stock: '' });
 
   const cargarCatalogo = useCallback(async () => {
     if (!api || !canRead) return;
     setLoading(true);
     setError(null);
+    setErrorDetails(null);
     try {
       const data = await listarCatalogo(api);
       setProductos(data);
     } catch (err) {
       setError(apiErrorMessage(err));
+      setErrorDetails(err instanceof ApiError && err.status === 403 ? apiErrorDetails(err) : null);
     } finally {
       setLoading(false);
     }
@@ -61,9 +72,13 @@ export function Catalogo() {
         if (active) {
           setProductos(data);
           setError(null);
+          setErrorDetails(null);
         }
       } catch (err) {
-        if (active) setError(apiErrorMessage(err));
+        if (active) {
+          setError(apiErrorMessage(err));
+          setErrorDetails(err instanceof ApiError && err.status === 403 ? apiErrorDetails(err) : null);
+        }
       } finally {
         if (active) setLoading(false);
       }
@@ -139,7 +154,6 @@ export function Catalogo() {
 
   async function handleDelete(producto: Producto) {
     if (!api || !canWrite || deletingId !== null) return;
-    if (!window.confirm(`¿Eliminar el producto "${producto.nombre}"?`)) return;
 
     setDeletingId(producto.id);
     setActionError(null);
@@ -152,164 +166,76 @@ export function Catalogo() {
       setActionError(apiErrorMessage(err));
     } finally {
       setDeletingId(null);
+      setConfirmingDelete(null);
     }
   }
 
   const backendPendiente = error === 'El backend aún no está configurado.';
 
   return (
-    <section className="page">
-      <div className="page-header">
-        <div>
-          <h1>Catálogo</h1>
-
-          <p className="subtitle">
-            Consulta de productos y disponibilidad.
-          </p>
-        </div>
-
-        <button
-          className="btn btn-secondary"
-          onClick={() => void cargarCatalogo()}
-          disabled={loading || authorization.loading || !api || !canRead}
-        >
-          {loading ? 'Actualizando...' : 'Actualizar catálogo'}
-        </button>
-      </div>
-
-      {canWrite && formMode === 'closed' && (
-        <button className="btn btn-primary" onClick={abrirCreacion} disabled={saving || deletingId !== null}>
-          Crear producto
-        </button>
-      )}
-
+    <section className="page-stack">
+      <PageHeader
+        eyebrow="Inventario"
+        title="Catálogo"
+        subtitle="Gestiona los productos y su disponibilidad."
+        actions={(
+          <>
+            <button className="secondary-button" onClick={() => void cargarCatalogo()} disabled={loading || !api || !canRead}>
+              <RefreshCw size={16} />Actualizar
+            </button>
+            {canWrite && <button className="primary-button" onClick={abrirCreacion} disabled={saving || deletingId !== null}>
+              <Plus size={17} />Nuevo producto
+            </button>}
+          </>
+        )}
+      />
+      {authorization.error && <ErrorState message={authorization.error} />}
       {isAdmin && !hasScope('catalog.write') && !authorization.loading && (
-        <div className="state-panel state-info" role="status">
-          <p>Tu rol permite administrar el catálogo, pero falta el permiso catalog.write.</p>
+        <p className="permission-note">Tu rol permite administrar el catálogo, pero tu sesión no incluye catalog.write.</p>
+      )}
+      {notice && <p className="success-banner" role="status">{notice}</p>}
+      {actionError && <ErrorState title="No se pudo eliminar el producto" message={actionError} />}
+      {error && !backendPendiente && <ErrorState title={error.startsWith('Tu cuenta') ? 'La API rechazó la solicitud' : undefined} message={error} details={errorDetails} onRetry={() => void cargarCatalogo()} />}
+      {backendPendiente && <ErrorState message={error ?? 'El backend no está configurado.'} />}
+      {loading && canRead && <LoadingState message="Cargando productos…" />}
+      {!loading && !error && canRead && productos.length === 0 && (
+        <EmptyState title="No hay productos registrados" description="Cuando existan productos, aparecerán aquí." />
+      )}
+      {!loading && !error && canRead && productos.length > 0 && (
+        <div className="product-grid">
+          {productos.map((producto) => (
+            <ProductoCard
+              key={producto.id}
+              producto={producto}
+              canWrite={canWrite}
+              deleting={deletingId === producto.id}
+              onEdit={abrirEdicion}
+              onDelete={setConfirmingDelete}
+            />
+          ))}
         </div>
       )}
-
       {formMode !== 'closed' && (
-        <section className="surface order-create">
-          <h2>{formMode === 'create' ? 'Crear producto' : 'Editar producto'}</h2>
-          <form className="order-form" onSubmit={handleSave}>
-            <label>
-              Nombre
-              <input value={form.nombre} onChange={(event) => setForm({ ...form, nombre: event.target.value })} required maxLength={120} />
-            </label>
-            <label>
-              Descripción
-              <input value={form.descripcion} onChange={(event) => setForm({ ...form, descripcion: event.target.value })} required maxLength={1000} />
-            </label>
-            <label>
-              Precio
-              <input type="number" min="0" step="0.01" value={form.precio} onChange={(event) => setForm({ ...form, precio: event.target.value })} required />
-            </label>
-            <label>
-              Stock
-              <input type="number" min="0" step="1" value={form.stock} onChange={(event) => setForm({ ...form, stock: event.target.value })} required />
-            </label>
-            <button className="btn btn-primary" type="submit" disabled={saving || deletingId !== null}>
-              {saving ? 'Guardando...' : 'Guardar producto'}
-            </button>
-            <button className="btn btn-quiet" type="button" onClick={() => setFormMode('closed')} disabled={saving}>
-              Cancelar
-            </button>
-          </form>
-          {formError && <p className="form-error" role="alert">{formError}</p>}
-        </section>
+        <ProductoForm
+          mode={formMode}
+          values={form}
+          saving={saving}
+          error={formError}
+          onChange={setForm}
+          onSubmit={handleSave}
+          onClose={() => setFormMode('closed')}
+        />
       )}
-
-      {notice && <p className="form-success" role="status">{notice}</p>}
-      {actionError && <div className="state-panel state-error" role="alert"><p>{actionError}</p></div>}
-
-      {backendPendiente && (
-        <div className="state-panel state-info" role="status">
-          <h2>Catálogo preparado</h2>
-          <p>El catálogo está preparado, pero el backend todavía no ha sido configurado.</p>
-        </div>
+      {confirmingDelete && (
+        <ConfirmDialog
+          title="Eliminar producto"
+          message={`¿Seguro que quieres eliminar “${confirmingDelete.nombre}”? Esta acción no se puede deshacer.`}
+          confirmLabel="Eliminar producto"
+          busy={deletingId === confirmingDelete.id}
+          onConfirm={() => void handleDelete(confirmingDelete)}
+          onCancel={() => setConfirmingDelete(null)}
+        />
       )}
-
-      {!backendPendiente && !authorization.loading && authorization.error && (
-        <div className="state-panel state-error" role="alert"><p>{authorization.error}</p></div>
-      )}
-
-      {!backendPendiente && !authorization.loading && !authorization.error && !canRead && (
-        <div className="state-panel state-error" role="alert">
-          <h2>Permiso de consulta no disponible</h2>
-          <p>Tu cuenta no tiene el permiso necesario para consultar el catálogo.</p>
-        </div>
-      )}
-
-      {error && (
-        !backendPendiente && <div className="state-panel state-error" role="alert">
-          <h3>No se pudo cargar el catálogo</h3>
-          <p>{error}</p>
-        </div>
-      )}
-
-      {!error && loading && !authorization.loading && canRead && (
-        <div className="state-panel" role="status">
-          <span className="loading-indicator" aria-hidden="true" />
-          <p>Cargando productos...</p>
-        </div>
-      )}
-
-      {!error && !backendPendiente &&
-        !loading &&
-        !authorization.loading && canRead &&
-        productos.length === 0 && (
-          <div className="state-panel">
-            <h3>Catálogo vacío</h3>
-
-            <p className="subtitle">
-              Actualmente no existen productos registrados.
-            </p>
-          </div>
-        )}
-
-      {!error && !backendPendiente &&
-        !loading &&
-        !authorization.loading && canRead &&
-        productos.length > 0 && (
-          <div className="product-grid">
-            {productos.map((producto) => (
-              <article
-                key={producto.id}
-                className="surface product-card"
-              >
-                <div className="product-card-header">
-                  <h3>{producto.nombre}</h3>
-
-                  <span className={`stock-badge${producto.stock === 0 ? ' stock-empty' : ''}`}>
-                    Stock: {producto.stock}
-                  </span>
-                </div>
-
-                {producto.descripcion && (
-                  <p className="subtitle">
-                    {producto.descripcion}
-                  </p>
-                )}
-
-                <div className="product-price">
-                  {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(producto.precio)}
-                </div>
-
-                {canWrite && (
-                  <div className="order-actions" aria-label={`Acciones para ${producto.nombre}`}>
-                    <button className="btn btn-secondary" onClick={() => abrirEdicion(producto)} disabled={saving || deletingId !== null}>
-                      Editar
-                    </button>
-                    <button className="btn btn-quiet" onClick={() => void handleDelete(producto)} disabled={saving || deletingId !== null}>
-                      {deletingId === producto.id ? 'Eliminando...' : 'Eliminar'}
-                    </button>
-                  </div>
-                )}
-              </article>
-            ))}
-          </div>
-        )}
     </section>
   );
 }

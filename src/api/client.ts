@@ -7,18 +7,32 @@
 import type { IPublicClientApplication, AccountInfo } from '@azure/msal-browser';
 import { InteractionRequiredAuthError } from '@azure/msal-browser';
 import { apiConfig, apiRequest } from '../auth/authConfig';
+import { decodeJwt, rolesOf, scopesOf } from '../utils/jwt';
+
+interface ApiTokenClaims {
+  aud: string | string[] | null;
+  iss: string | null;
+  scp: string[];
+  roles: string[];
+}
 
 export class ApiError extends Error {
   status: number;
   statusText: string;
   body: unknown;
+  url: string | null;
+  method: string;
+  tokenClaims: ApiTokenClaims | null;
 
-  constructor(status: number, statusText: string, body: unknown) {
+  constructor(status: number, statusText: string, body: unknown, url: string | null = null, method = 'GET', tokenClaims: ApiTokenClaims | null = null) {
     super(status === 0 ? 'No fue posible conectar con el backend.' : `Error de servicio (${status}).`);
     this.name = 'ApiError';
     this.status = status;
     this.statusText = statusText;
     this.body = body;
+    this.url = url;
+    this.method = method;
+    this.tokenClaims = tokenClaims;
   }
 }
 
@@ -46,6 +60,17 @@ export function apiErrorMessage(error: unknown): string {
   }
 
   return 'No se pudo completar la solicitud. Inténtalo nuevamente.';
+}
+
+export function apiErrorDetails(error: unknown): string | null {
+  if (!(error instanceof ApiError)) return null;
+  return JSON.stringify({
+    request: { method: error.method, endpoint: error.url },
+    status: error.status,
+    statusText: error.statusText,
+    tokenClaims: error.tokenClaims,
+    response: error.body,
+  }, null, 2);
 }
 
 function safeJson(text: string): unknown {
@@ -103,6 +128,14 @@ export function createApiClient(
 
     const token = await acquireApiToken(instance, account);
     const url = `${apiConfig.baseUrl}${path.startsWith('/') ? path : `/${path}`}`;
+    const method = (init.method ?? 'GET').toUpperCase();
+    const claims = decodeJwt(token);
+    const tokenClaims: ApiTokenClaims | null = claims ? {
+      aud: claims.aud ?? null,
+      iss: claims.iss ?? null,
+      scp: scopesOf(claims),
+      roles: rolesOf(claims),
+    } : null;
 
     const headers = new Headers(init.headers);
     if (!headers.has('Accept')) headers.set('Accept', 'application/json');
@@ -115,14 +148,14 @@ export function createApiClient(
     try {
       response = await fetch(url, { ...init, headers });
     } catch {
-      throw new ApiError(0, 'Network Error', null);
+      throw new ApiError(0, 'Network Error', null, url, method, tokenClaims);
     }
 
     const text = await response.text();
     const body = text ? safeJson(text) : null;
 
     if (!response.ok) {
-      throw new ApiError(response.status, response.statusText, body);
+      throw new ApiError(response.status, response.statusText, body, url, method, tokenClaims);
     }
     return body as T;
   }

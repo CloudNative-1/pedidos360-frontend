@@ -5,9 +5,11 @@
 // desde App.tsx mediante RequireAuth y RequireRole.
 
 import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { RefreshCw } from 'lucide-react';
 
 import { useApi } from '../components/useApi';
 import { useAuthorization } from '../components/useAuthorization';
+import { listarCatalogo, type Producto } from '../api/catalogo';
 
 import {
   actualizarEstadoPedido,
@@ -15,10 +17,15 @@ import {
   listarPedidos,
   type Pedido,
   type EstadoPedido,
-  transicionesPermitidas,
 } from '../api/pedidos';
 
 import { apiErrorMessage } from '../api/client';
+import { PageHeader } from '../components/layout/PageHeader';
+import { PedidoCard } from '../components/pedidos/PedidoCard';
+import { PedidoForm } from '../components/pedidos/PedidoForm';
+import { EmptyState } from '../components/common/EmptyState';
+import { ErrorState } from '../components/common/ErrorState';
+import { LoadingState } from '../components/common/LoadingState';
 
 export function Pedidos() {
   const api = useApi();
@@ -41,6 +48,9 @@ export function Pedidos() {
   const [notice, setNotice] = useState<string | null>(null);
   const [productoId, setProductoId] = useState('');
   const [cantidad, setCantidad] = useState(1);
+  const [productos, setProductos] = useState<Producto[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [productError, setProductError] = useState<string | null>(null);
 
   const cargarPedidos = useCallback(async () => {
     if (!api || authorizationLoading || !hasScope('orders.read')) return;
@@ -92,6 +102,34 @@ export function Pedidos() {
     (roles.includes('Admin') || roles.includes('Operador')) &&
     authorization.hasScope('orders.write');
   const backendPendiente = error === 'El backend aún no está configurado.';
+  const canReadCatalog = authorization.hasScope('catalog.read');
+
+  useEffect(() => {
+    if (!api || !puedeCrear || !canReadCatalog) return;
+    let active = true;
+    void listarCatalogo(api)
+      .then((data) => {
+        if (active) {
+          setProductos(data);
+          setProductError(null);
+        }
+      })
+      .catch((reason: unknown) => {
+        if (active) setProductError(apiErrorMessage(reason));
+      })
+      .finally(() => {
+        if (active) setLoadingProducts(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [api, canReadCatalog, puedeCrear]);
+
+  useEffect(() => {
+    if (window.location.hash === '#nuevo-pedido') {
+      document.getElementById('nuevo-pedido')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, []);
 
   async function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -137,24 +175,15 @@ export function Pedidos() {
   const canRead = authorization.hasScope('orders.read');
 
   return (
-    <section className="page">
-      <div className="page-header">
-        <div>
-          <h1>Pedidos</h1>
-
-          <p className="subtitle">
-            Consulta y seguimiento de pedidos.
-          </p>
-        </div>
-
-        <button
-          className="btn btn-secondary"
-          onClick={actualizar}
-          disabled={loading || authorization.loading || !api || !canRead}
-        >
-          {loading ? 'Actualizando...' : 'Actualizar pedidos'}
-        </button>
-      </div>
+    <section className="page-stack">
+      <PageHeader
+        eyebrow="Operación"
+        title="Pedidos"
+        subtitle="Consulta, crea y da seguimiento a los pedidos."
+        actions={<button className="secondary-button" onClick={actualizar} disabled={loading || authorization.loading || !api || !canRead}>
+          <RefreshCw size={16} />Actualizar
+        </button>}
+      />
 
       {notice && <p className="form-success" role="status">{notice}</p>}
 
@@ -179,26 +208,17 @@ export function Pedidos() {
       {canRead && !backendPendiente && !authorization.loading && !authorization.error && (
         <>
           {puedeCrear && (
-            <section className="surface order-create">
-              <div>
-                <h2>Crear pedido</h2>
-                <p className="subtitle">El cliente se identifica mediante la sesión de Microsoft Entra ID.</p>
-              </div>
-              <form className="order-form" onSubmit={handleCreate}>
-                <label>
-                  ID del producto
-                  <input value={productoId} onChange={(event) => setProductoId(event.target.value)} required />
-                </label>
-                <label>
-                  Cantidad
-                  <input type="number" min="1" step="1" value={cantidad} onChange={(event) => setCantidad(Number(event.target.value))} required />
-                </label>
-                <button className="btn btn-primary" type="submit" disabled={creating || pendingId !== null || !productoId.trim()}>
-                  {creating ? 'Enviando...' : 'Enviar pedido'}
-                </button>
-              </form>
-              {formError && <p className="form-error" role="alert">{formError}</p>}
-            </section>
+            <PedidoForm
+              productoId={productoId}
+              cantidad={cantidad}
+              products={productos}
+              productsLoading={loadingProducts && canReadCatalog}
+              submitting={creating || pendingId !== null}
+              error={formError ?? productError}
+              onProductChange={setProductoId}
+              onQuantityChange={setCantidad}
+              onSubmit={handleCreate}
+            />
           )}
 
           {authorization.hasScope('orders.write') && !puedeCrear && !puedeCambiarEstado && (
@@ -207,123 +227,32 @@ export function Pedidos() {
         </>
       )}
 
-      {error && (
-        !backendPendiente && <div className="state-panel state-error" role="alert">
-          <h3>
-            No se pudo completar la solicitud
-          </h3>
+      {error && !backendPendiente && <ErrorState message={error} onRetry={actualizar} />}
+      {actionError && <ErrorState title="No se pudo actualizar el pedido" message={actionError} />}
 
-          <p>{error}</p>
-        </div>
-      )}
-
-      {!error && loading && !backendPendiente && !authorization.loading && canRead && (
-        <div className="state-panel" role="status">
-          <span className="loading-indicator" aria-hidden="true" />
-          <p>Cargando pedidos...</p>
-        </div>
-      )}
+      {!error && loading && !backendPendiente && !authorization.loading && canRead && <LoadingState message="Cargando pedidos…" />}
 
       {!error && !backendPendiente && !authorization.loading && canRead &&
         !loading &&
-        pedidos.length === 0 && (
-          <div className="state-panel">
-            <h3>
-              No existen pedidos
-            </h3>
-
-            <p className="subtitle">
-              Cuando se registren pedidos
-              aparecerán en esta sección.
-            </p>
-          </div>
-        )}
+        pedidos.length === 0 && <EmptyState title="No hay pedidos disponibles" description="Los pedidos asociados a tu cuenta aparecerán aquí." />}
 
       {!error && !backendPendiente && !authorization.loading && canRead &&
         !loading &&
         pedidos.length > 0 && (
           <>
-          {actionError && <div className="state-panel state-error" role="alert"><p>{actionError}</p></div>}
           <div className="orders-list">
-            {pedidos.map((pedido) => (
-              <article
-                key={pedido.id}
-                className="surface order-card"
-              >
-                <div className="order-header">
-                  <div>
-                    <h3>
-                      Pedido #{pedido.id}
-                    </h3>
-
-                    {(pedido.clienteNombre || pedido.clienteId) && (
-                      <p className="subtitle">Cliente: {pedido.clienteNombre ?? pedido.clienteId}</p>
-                    )}
-                  </div>
-
-                  <EstadoBadge
-                    estado={pedido.estado}
-                  />
-                </div>
-
-                {pedido.fechaCreacion && (
-                  <p>
-                    Fecha:{' '}
-                    {formatearFecha(pedido.fechaCreacion)}
-                  </p>
-                )}
-
-                {pedido.productos.length > 0 && (
-                  <ul className="order-products">
-                    {pedido.productos.map((producto, index) => (
-                      <li key={`${producto.productoId}-${index}`}>
-                        {producto.nombre ?? `Producto ${producto.productoId}`} · {producto.cantidad} un.
-                      </li>
-                    ))}
-                  </ul>
-                )}
-
-                <p className="order-total">
-                  Total: {new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 }).format(pedido.total)}
-                </p>
-
-                {puedeCambiarEstado && transicionesPermitidas(pedido.estado).length > 0 && (
-                  <div className="order-actions" aria-label={`Acciones para el pedido ${pedido.id}`}>
-                    {/* Esta regla también debe validarse obligatoriamente en el backend. */}
-                    {transicionesPermitidas(pedido.estado).map((estado) => (
-                      <button
-                        className={estado === 'CANCELADO' ? 'btn btn-quiet' : 'btn btn-secondary'}
-                        key={estado}
-                        onClick={() => void handleTransition(pedido, estado)}
-                        disabled={pendingId !== null || creating}
-                      >
-                        {pendingId === pedido.id ? 'Guardando...' : etiquetaAccion(estado)}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </article>
-            ))}
+            {pedidos.map((pedido) => <PedidoCard
+              key={pedido.id}
+              pedido={pedido}
+              canChangeStatus={puedeCambiarEstado}
+              pending={pendingId !== null || creating}
+              saving={pendingId === pedido.id}
+              onTransition={(order, state) => void handleTransition(order, state)}
+            />)}
           </div>
           </>
         )}
     </section>
-  );
-}
-
-interface EstadoBadgeProps {
-  estado: EstadoPedido;
-}
-
-function EstadoBadge({
-  estado,
-}: EstadoBadgeProps) {
-  return (
-    <span
-      className={`order-status order-status-${estado.toLowerCase()}`}
-    >
-      {formatearEstado(estado)}
-    </span>
   );
 }
 
@@ -351,31 +280,5 @@ function formatearEstado(
 
     default:
       return estado;
-  }
-}
-
-function formatearFecha(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Fecha no disponible';
-  return new Intl.DateTimeFormat('es-CL', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(date);
-}
-
-function etiquetaAccion(estado: EstadoPedido): string {
-  switch (estado) {
-    case 'ACEPTADO':
-      return 'Aceptar';
-    case 'CANCELADO':
-      return 'Cancelar';
-    case 'EN_PREPARACION':
-      return 'En preparación';
-    case 'DESPACHADO':
-      return 'Despachar';
-    case 'ENTREGADO':
-      return 'Entregar';
-    case 'CREADO':
-      return 'Creado';
   }
 }

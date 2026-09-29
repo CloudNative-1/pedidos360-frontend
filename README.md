@@ -21,7 +21,7 @@ npm run build
 npm run lint
 ```
 
-Vite inicia normalmente en `http://localhost:5173`.
+Abre siempre el desarrollo en `http://localhost:5173`, el origen configurado para Entra ID y API Gateway.
 
 ## Variables de entorno
 

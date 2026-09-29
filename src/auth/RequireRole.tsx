@@ -28,6 +28,7 @@ import { useMsal } from '@azure/msal-react';
 import { acquireApiToken } from '../api/client';
 
 import { decodeJwt, rolesOf } from '../utils/jwt';
+import { resolveActiveAccount } from './activeAccount';
 
 interface RequireRoleProps {
   roles: readonly string[];
@@ -47,36 +48,38 @@ export function RequireRole({
     accounts,
   } = useMsal();
 
-  const account =
-    instance.getActiveAccount() ??
-    accounts[0] ??
-    null;
+  const account = resolveActiveAccount(instance, accounts);
+  const accountKey = account?.homeAccountId ?? '';
 
   const rolesKey = roles.join('\u0000');
-  const evaluationKey = `${account?.homeAccountId ?? ''}:${rolesKey}`;
+  const evaluationKey = `${accountKey}:${rolesKey}`;
   const [evaluation, setEvaluation] = useState<{
     key: string;
     status: Status;
   } | null>(null);
   const status = !account
     ? 'denied'
+    : !instance.getAccount({ homeAccountId: accountKey })
+      ? 'denied'
     : evaluation?.key === evaluationKey
       ? evaluation.status
       : 'loading';
 
   useEffect(() => {
-    if (!account || !rolesKey) {
+    if (!accountKey || !rolesKey) {
       return;
     }
 
     let cancelled = false;
+    const tokenAccount = instance.getAccount({ homeAccountId: accountKey });
+    if (!tokenAccount) return;
 
     const verificarRoles = async () => {
       try {
         const token =
           await acquireApiToken(
             instance,
-            account,
+            tokenAccount,
           );
 
         if (cancelled) {
@@ -111,7 +114,7 @@ export function RequireRole({
     return () => {
       cancelled = true;
     };
-  }, [account, evaluationKey, instance, rolesKey]);
+  }, [accountKey, evaluationKey, instance, rolesKey]);
 
   // --------------------------------
   // Verificando autorización
