@@ -9,9 +9,9 @@
 .section-heading h2 { margin: 0; font-size: 19px; }
 .shortcut-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .shortcut-card { display: flex; min-height: 106px; align-items: center; gap: 13px; padding: 18px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow-card); text-decoration: none; transition: border-color .16s ease, transform .16s ease, box-shadow .16s ease; }
-.shortcut-card:hover { transform: translateY(-2px); border-color: #bed0f2; box-shadow: 0 8px 22px rgba(18,37,67,.08); }
+.shortcut-card:hover { transform: translateY(-2px); border-color: rgba(208, 160, 64, .55); box-shadow: 0 8px 22px rgba(0, 0, 0, .4); }
 .shortcut-icon { display: grid; width: 42px; height: 42px; flex: 0 0 42px; place-items: center; border-radius: 8px; background: var(--primary-soft); color: var(--primary); }
 .shortcut-copy { display: grid; min-width: 0; gap: 4px; }
 .shortcut-copy strong { color: var(--text-primary); font-size: 13px; }
 .shortcut-copy small { color: var(--text-secondary); font-size: 11px; }
-.shortcut-arrow { margin-left: auto; flex: 0 0 auto; color: #91a0b4; }
+.shortcut-arrow { margin-left: auto; flex: 0 0 auto; color: var(--sidebar-muted); }
